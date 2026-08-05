@@ -1,13 +1,13 @@
 {
   "name": "ember-feature-flags",
   "version": "0.0.0",
-  "description": "The default blueprint for Embroider v2 addons.",
+  "description": "Provider-agnostic feature flag service for Ember with shadow-mode drift detection between multiple providers. Ships with LaunchDarkly and IBM App Configuration adapters and reporters for Console, HTTP, Sentry, and PostHog.",
   "keywords": [
     "ember-addon"
   ],
   "repository": "",
   "license": "MIT",
-  "author": "",
+  "author": "Chris Burrell",
   "imports": {
     "#src/*": "./src/*"
   },
@@ -47,7 +47,8 @@
   },
   "dependencies": {
     "@embroider/addon-shim": "^1.8.9",
-    "decorator-transforms": "^2.2.2"
+    "decorator-transforms": "^2.2.2",
+    "ember-launch-darkly": "^6.0.1"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
@@ -69,6 +70,7 @@
     "@glint/template": "^1.6.1",
     "@glint/tsserver-plugin": "^2.0.0",
     "@rollup/plugin-babel": "^6.0.4",
+    "@sentry/browser": "^10.69.0",
     "@types/qunit": "^2.19.12",
     "babel-plugin-ember-template-compilation": "^4.0.0",
     "concurrently": "^9.0.1",
@@ -83,6 +85,9 @@
     "eslint-plugin-import": "^2.31.0",
     "eslint-plugin-n": "^17.15.1",
     "globals": "^16.1.0",
+    "ibm-appconfiguration-js-client-sdk": "^0.3.0",
+    "launchdarkly-js-client-sdk": "^3.9.4",
+    "posthog-js": "^1.413.2",
     "prettier": "^3.4.2",
     "prettier-plugin-ember-template-tag": "^2.0.4",
     "publint": "^0.3.16",
@@ -90,9 +95,23 @@
     "qunit-dom": "^3.4.0",
     "rollup": "^4.22.5",
     "testem": "^3.15.1",
+    "tracked-built-ins": "^4.1.2",
     "typescript": "~5.8.3",
     "typescript-eslint": "^8.19.1",
     "vite": "^7.1.9"
+  },
+  "peerDependencies": {
+    "@sentry/browser": ">= 7.0.0",
+    "ember-source": ">= 6.7.0",
+    "posthog-js": ">= 1.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@sentry/browser": {
+      "optional": true
+    },
+    "posthog-js": {
+      "optional": true
+    }
   },
   "ember": {
     "edition": "octane"
@@ -100,6 +119,10 @@
   "ember-addon": {
     "version": 2,
     "type": "addon",
-    "main": "addon-main.cjs"
+    "main": "addon-main.cjs",
+    "app-js": {
+      "./helpers/variation.js": "./dist/_app_/helpers/variation.js",
+      "./services/feature-flags.js": "./dist/_app_/services/feature-flags.js"
+    }
   }
 }
