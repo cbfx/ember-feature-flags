@@ -2,6 +2,10 @@ import EmberApp from 'ember-strict-application-resolver';
 import EmberRouter from '@ember/routing/router';
 import PageTitleService from 'ember-page-title/services/page-title';
 
+import ApplicationRoute from './routes/application';
+import FeatureFlagsService from 'ember-feature-flags/services/feature-flags';
+import VariationHelper from 'ember-feature-flags/helpers/variation';
+
 class Router extends EmberRouter {
   location = 'history';
   rootURL = '/';
@@ -19,7 +23,10 @@ export class App extends EmberApp {
    */
   modules = {
     './router': Router,
+    './routes/application': ApplicationRoute,
     './services/page-title': PageTitleService,
+    './services/feature-flags': FeatureFlagsService,
+    './helpers/variation': VariationHelper,
     /**
      * NOTE: this glob will import everything matching the glob,
      *     and includes non-services in the services directory.
