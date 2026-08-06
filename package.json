@@ -1,6 +1,7 @@
 {
   "name": "ember-feature-flags",
   "version": "0.0.0",
+  "packageManager": "pnpm@10.26.0",
   "description": "Provider-agnostic feature flag service for Ember with shadow-mode drift detection between multiple providers. Ships with LaunchDarkly and IBM App Configuration adapters and reporters for Console, HTTP, Sentry, and PostHog.",
   "keywords": [
     "ember-addon"
@@ -32,7 +33,7 @@
   "scripts": {
     "build": "rollup --config",
     "format": "prettier . --cache --write",
-    "lint": "concurrently \"pnpm:lint:*(!fix)\" --names \"lint:\" --prefixColors auto",
+    "lint": "pnpm build && concurrently \"pnpm:lint:*(!fix)\" --names \"lint:\" --prefixColors auto",
     "lint:fix": "concurrently \"pnpm:lint:*:fix\" --names \"fix:\" --prefixColors auto && pnpm run format",
     "lint:format": "prettier . --cache --check",
     "lint:hbs": "ember-template-lint . --no-error-on-unmatched-pattern",
@@ -43,7 +44,7 @@
     "lint:types": "ember-tsc --noEmit",
     "prepack": "rollup --config",
     "start": "vite dev",
-    "test": "vite build --mode=development --out-dir dist-tests && testem --file testem.cjs ci --port 0"
+    "test": "pnpm build && vite build --mode=development --out-dir dist-tests && testem --file testem.cjs ci --port 0"
   },
   "dependencies": {
     "@embroider/addon-shim": "^1.8.9",
