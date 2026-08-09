@@ -19,6 +19,10 @@
     },
     "./addon-main.js": "./addon-main.cjs",
     "./*.css": "./dist/*.css",
+    "./test-support": {
+      "types": "./declarations/test-support/index.d.ts",
+      "default": "./dist/test-support/index.js"
+    },
     "./*": {
       "types": "./declarations/*.d.ts",
       "default": "./dist/*.js"

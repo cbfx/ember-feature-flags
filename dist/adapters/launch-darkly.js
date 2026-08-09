@@ -1,14 +1,5 @@
-import {
-  initialize,
-  identify as ldIdentify,
-  variation as ldVariation,
-} from 'ember-launch-darkly';
-import BaseFeatureFlagAdapter, {
-  type FlagUser,
-  type VariationOptions,
-  type ChangeCallback,
-  type Unsubscribe,
-} from './base.ts';
+import { initialize, identify, variation } from 'ember-launch-darkly';
+import BaseFeatureFlagAdapter from './base.js';
 
 /**
  * Config shape for the LaunchDarkly adapter, matching what
@@ -20,48 +11,6 @@ import BaseFeatureFlagAdapter, {
  * `streaming`, etc.) is forwarded to `ember-launch-darkly` via the
  * index signature.
  */
-export interface LaunchDarklyConfig {
-  /** LaunchDarkly project's client-side ID. */
-  clientSideId: string;
-  /**
-   * `remote` talks to LaunchDarkly. `local` reads from `localFlags` only
-   * (no network). Used in dev and as a fallback when remote init fails.
-   */
-  mode?: 'remote' | 'local';
-  /** Flag-name → value map used when `mode: 'local'`. */
-  localFlags?: Record<string, unknown>;
-
-  /**
-   * Persist the anonymous context in localStorage under this key so the
-   * same anonymous user persists across sessions. Omit for per-session
-   * UUID (the default).
-   */
-  anonymousContextStorageKey?: string;
-
-  /** Extra attributes merged into the anonymous context on first creation. */
-  anonymousContextAttributes?: Record<string, unknown>;
-
-  /** Init timeout in milliseconds. Passed to LD as seconds. */
-  timeoutMs?: number;
-
-  /**
-   * Timeout used on the next init if a recent init failed. Remembered
-   * under `timeoutFailureStorageKey` for `timeoutFailureCooldownMs`.
-   */
-  shortenedTimeoutMs?: number;
-
-  /**
-   * localStorage key that remembers a recent init timeout failure. When
-   * set together with `shortenedTimeoutMs`, enables the shortened-timeout
-   * path on subsequent inits within the cooldown window.
-   */
-  timeoutFailureStorageKey?: string;
-
-  /** How long a remembered failure stays effective. Default 5 minutes. */
-  timeoutFailureCooldownMs?: number;
-
-  [key: string]: unknown;
-}
 
 /**
  * LaunchDarkly adapter, wrapping `ember-launch-darkly` (which itself wraps
@@ -82,9 +31,9 @@ export interface LaunchDarklyConfig {
  *    so subsequent inits within the cooldown use `shortenedTimeoutMs`
  *    to fail fast.
  */
-export default class LaunchDarklyAdapter extends BaseFeatureFlagAdapter<LaunchDarklyConfig> {
+class LaunchDarklyAdapter extends BaseFeatureFlagAdapter {
   // eslint-disable-next-line ember/classic-decorator-hooks
-  async init(config: LaunchDarklyConfig): Promise<void> {
+  async init(config) {
     const {
       clientSideId,
       anonymousContextStorageKey,
@@ -96,111 +45,73 @@ export default class LaunchDarklyAdapter extends BaseFeatureFlagAdapter<LaunchDa
       localFlags,
       ...options
     } = config;
-
-    const anonymousContext = this.resolveAnonymousContext(
-      anonymousContextStorageKey,
-      anonymousContextAttributes,
-    );
-
-    const effectiveTimeoutMs = this.resolveTimeout(
-      timeoutMs,
-      shortenedTimeoutMs,
-      timeoutFailureStorageKey,
-    );
-
+    const anonymousContext = this.resolveAnonymousContext(anonymousContextStorageKey, anonymousContextAttributes);
+    const effectiveTimeoutMs = this.resolveTimeout(timeoutMs, shortenedTimeoutMs, timeoutFailureStorageKey);
     const initOptions = {
       ...options,
       ...(effectiveTimeoutMs !== undefined && {
-        timeout: effectiveTimeoutMs / 1000,
-      }),
+        timeout: effectiveTimeoutMs / 1000
+      })
     };
-
-    const { isOk, error, context } = await initialize(
-      clientSideId,
-      anonymousContext,
-      initOptions,
-    );
-
+    const {
+      isOk,
+      error,
+      context
+    } = await initialize(clientSideId, anonymousContext, initOptions);
     if (!isOk) {
       console.warn('LaunchDarkly failed to initialize:', error);
-      this.rememberTimeoutFailure(
-        timeoutFailureStorageKey,
-        timeoutFailureCooldownMs,
-      );
+      this.rememberTimeoutFailure(timeoutFailureStorageKey, timeoutFailureCooldownMs);
       // Tear down the failed remote client before re-initing locally,
       // otherwise we leak its background reconnect attempts.
-      await context.destroy({ force: true });
+      await context.destroy({
+        force: true
+      });
       await initialize(clientSideId, anonymousContext, {
         ...options,
         mode: 'local',
-        localFlags,
+        localFlags
       });
     }
   }
-
-  private resolveAnonymousContext(
-    storageKey: string | undefined,
-    attributes: Record<string, unknown>,
-  ): { anonymous: true; key: string; [key: string]: unknown } {
+  resolveAnonymousContext(storageKey, attributes) {
     if (storageKey && typeof window !== 'undefined') {
       const stored = window.localStorage.getItem(storageKey);
       if (stored) {
         try {
-          return JSON.parse(stored) as {
-            anonymous: true;
-            key: string;
-            [key: string]: unknown;
-          };
+          return JSON.parse(stored);
         } catch {
           // Corrupted entry — fall through and recreate.
         }
       }
       const fresh = {
-        anonymous: true as const,
+        anonymous: true,
         key: crypto.randomUUID(),
-        ...attributes,
+        ...attributes
       };
       window.localStorage.setItem(storageKey, JSON.stringify(fresh));
       return fresh;
     }
-
     return {
       anonymous: true,
       key: crypto.randomUUID(),
-      ...attributes,
+      ...attributes
     };
   }
-
-  private resolveTimeout(
-    timeoutMs: number | undefined,
-    shortenedTimeoutMs: number | undefined,
-    failureStorageKey: string | undefined,
-  ): number | undefined {
-    if (
-      !failureStorageKey ||
-      typeof window === 'undefined' ||
-      shortenedTimeoutMs === undefined
-    ) {
+  resolveTimeout(timeoutMs, shortenedTimeoutMs, failureStorageKey) {
+    if (!failureStorageKey || typeof window === 'undefined' || shortenedTimeoutMs === undefined) {
       return timeoutMs;
     }
-
     const expiry = Number(window.localStorage.getItem(failureStorageKey));
     if (expiry && expiry > Date.now()) {
       return shortenedTimeoutMs;
     }
     return timeoutMs;
   }
-
-  private rememberTimeoutFailure(
-    storageKey: string | undefined,
-    cooldownMs: number,
-  ): void {
+  rememberTimeoutFailure(storageKey, cooldownMs) {
     if (!storageKey || typeof window === 'undefined') return;
-
     const existing = Number(window.localStorage.getItem(storageKey));
     const now = Date.now();
     if (existing && existing > now) return;
-
     window.localStorage.setItem(storageKey, String(now + cooldownMs));
   }
 
@@ -209,28 +120,25 @@ export default class LaunchDarklyAdapter extends BaseFeatureFlagAdapter<LaunchDa
    * throw — a failed identify shouldn't break the app, flags just stay
    * scoped to the previous (anonymous) user.
    */
-  async identify(
-    user: FlagUser,
-    traits: Record<string, unknown> = {},
-  ): Promise<void> {
-    const { isOk, error } = await ldIdentify({
+  async identify(user, traits = {}) {
+    const {
+      isOk,
+      error
+    } = await identify({
       key: user.id,
       name: user.name,
       email: user.email,
-      ...traits,
+      ...traits
     });
-
     if (!isOk) {
       console.error('LaunchDarkly failed to identify:', error);
     }
   }
-
-  variation<T = unknown>(
-    flagName: string,
-    { defaultValue }: VariationOptions<T> = {},
-  ): T {
-    const value = ldVariation(flagName);
-    return (value ?? defaultValue) as T;
+  variation(flagName, {
+    defaultValue
+  } = {}) {
+    const value = variation(flagName);
+    return value ?? defaultValue;
   }
 
   /**
@@ -239,7 +147,10 @@ export default class LaunchDarklyAdapter extends BaseFeatureFlagAdapter<LaunchDa
    * counter doesn't need to be bumped on flag changes for this adapter.
    */
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  onAnyChange(_callback: ChangeCallback): Unsubscribe {
+  onAnyChange(_callback) {
     return () => {};
   }
 }
+
+export { LaunchDarklyAdapter as default };
+//# sourceMappingURL=launch-darkly.js.map

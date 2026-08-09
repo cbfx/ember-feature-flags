@@ -1,14 +1,8 @@
+export { default as BaseFeatureFlagAdapter } from './adapters/base.js';
+
 /**
  * Copyright IBM Corp. 2020, 2026
  */
-
-import type ApplicationInstance from '@ember/application/instance';
-import type { VariationOptions } from './adapters/base.ts';
-import type FeatureFlagsService from './services/feature-flags.ts';
-import type {
-  FeatureFlagsConfig,
-  AdapterRegistry,
-} from './services/feature-flags.ts';
 
 /**
  * Importable API for use in plain JS modules — routes, utilities, anywhere
@@ -20,20 +14,19 @@ import type {
  * service directly.
  */
 
-let cachedOwner: ApplicationInstance | null = null;
+let cachedOwner = null;
 
 /**
  * Called once by `instance-initializers/feature-flags.ts` to give this
  * module a handle on the running app instance. Prefixed with `_` to signal
  * it's internal — consumers should never call this directly.
  */
-export function _setOwner(owner: ApplicationInstance): void {
+function _setOwner(owner) {
   cachedOwner = owner;
 }
-
-function getService(): FeatureFlagsService {
+function getService() {
   if (!cachedOwner) throw new Error('feature-flags not initialized');
-  return cachedOwner.lookup('service:feature-flags') as FeatureFlagsService;
+  return cachedOwner.lookup('service:feature-flags');
 }
 
 /**
@@ -44,10 +37,7 @@ function getService(): FeatureFlagsService {
  * Consumers can also call `this.featureFlags.initialize(...)` directly if
  * the service is already injected — behavior is identical.
  */
-export async function initialize(
-  config: FeatureFlagsConfig,
-  registry?: AdapterRegistry,
-): Promise<void> {
+async function initialize(config, registry) {
   await getService().initialize(config, registry);
 }
 
@@ -55,13 +45,9 @@ export async function initialize(
  * Read a flag's value from outside a component. Not reactive — reads at
  * call time.
  */
-export function variation<T = unknown>(
-  flagName: string,
-  options?: VariationOptions<T>,
-): T {
-  return getService().variation<T>(flagName, options);
+function variation(flagName, options) {
+  return getService().variation(flagName, options);
 }
 
-// Re-exports so consumers can import everything from one place if they want.
-export { default as BaseFeatureFlagAdapter } from './adapters/base.ts';
-export type { FlagUser, VariationOptions } from './adapters/base.ts';
+export { _setOwner, initialize, variation };
+//# sourceMappingURL=variation.js.map

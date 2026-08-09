@@ -14,34 +14,10 @@
  *   import { defaultAdapters, LaunchDarklyAdapter } from 'ember-feature-flags/adapters';
  *   import { SentryDriftReporter } from 'ember-feature-flags/reporters';
  */
-
-// Importable variation function for use in plain JS modules (routes, utils).
 export { variation, initialize, _setOwner } from './variation.ts';
-
-// Types every consumer needs to work with the API.
-export type {
-  FlagUser,
-  VariationOptions,
-  ChangeCallback,
-  Unsubscribe,
-} from './adapters/base.ts';
-
-// Base adapter class so consumers can implement custom providers.
+export type { FlagUser, VariationOptions, ChangeCallback, Unsubscribe, } from './adapters/base.ts';
 export { default as BaseFeatureFlagAdapter } from './adapters/base.ts';
-
-// Drift types so consumers can implement custom reporters.
-export type {
-  DriftReporter,
-  DriftAggregate,
-  DriftKind,
-} from './drift-reporter';
-
-// Service config + adapter-registry types so consumers can strongly type
-// their config block and their custom adapter registration.
-export type {
-  FeatureFlagsConfig,
-  AdapterRegistry,
-  AdapterLoader,
-} from './services/feature-flags';
-
+export type { DriftReporter, DriftAggregate, DriftKind, } from './drift-reporter';
+export type { FeatureFlagsConfig, AdapterRegistry, AdapterLoader, } from './services/feature-flags';
 export { defaultAdapters } from './adapters/index.ts';
+//# sourceMappingURL=index.d.ts.map
