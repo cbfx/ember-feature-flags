@@ -14,9 +14,6 @@ importers:
       decorator-transforms:
         specifier: ^2.2.2
         version: 2.4.0(@babel/core@7.29.7)
-      ember-launch-darkly:
-        specifier: ^6.0.1
-        version: 6.0.1(@babel/core@7.29.7)(@ember/test-helpers@5.4.3(@babel/core@7.29.7))(ember-source@6.12.0(@glimmer/component@2.1.1)(rsvp@4.8.5))(launchdarkly-js-client-sdk@3.9.4)(tracked-built-ins@4.1.2(@babel/core@7.29.7))
     devDependencies:
       '@babel/core':
         specifier: ^7.25.2
@@ -87,6 +84,9 @@ importers:
       concurrently:
         specifier: ^9.0.1
         version: 9.2.4
+      ember-launch-darkly:
+        specifier: ^6.0.1
+        version: 6.0.1(@babel/core@7.29.7)(@ember/test-helpers@5.4.3(@babel/core@7.29.7))(ember-source@6.12.0(@glimmer/component@2.1.1)(rsvp@4.8.5))(launchdarkly-js-client-sdk@3.9.4)(tracked-built-ins@4.1.2(@babel/core@7.29.7))
       ember-page-title:
         specifier: ^9.0.3
         version: 9.0.3

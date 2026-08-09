@@ -52,8 +52,7 @@
   },
   "dependencies": {
     "@embroider/addon-shim": "^1.8.9",
-    "decorator-transforms": "^2.2.2",
-    "ember-launch-darkly": "^6.0.1"
+    "decorator-transforms": "^2.2.2"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
@@ -79,6 +78,7 @@
     "@types/qunit": "^2.19.12",
     "babel-plugin-ember-template-compilation": "^4.0.0",
     "concurrently": "^9.0.1",
+    "ember-launch-darkly": "^6.0.1",
     "ember-page-title": "^9.0.3",
     "ember-qunit": "^9.0.2",
     "ember-source": "^6.7.0",
@@ -107,10 +107,18 @@
   },
   "peerDependencies": {
     "@sentry/browser": ">= 7.0.0",
+    "ember-launch-darkly": ">= 6.0.0",
     "ember-source": ">= 6.7.0",
+    "ibm-appconfiguration-js-client-sdk": ">= 0.3.0",
     "posthog-js": ">= 1.0.0"
   },
   "peerDependenciesMeta": {
+    "ember-launch-darkly": {
+      "optional": true
+    },
+    "ibm-appconfiguration-js-client-sdk": {
+      "optional": true
+    },
     "@sentry/browser": {
       "optional": true
     },
