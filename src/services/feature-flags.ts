@@ -5,11 +5,16 @@
 import Service from '@ember/service';
 import { tracked } from '@glimmer/tracking';
 import type BaseFeatureFlagAdapter from '../adapters/base.ts';
-import type { FlagUser, VariationOptions } from '../adapters/base.ts';
+import type {
+  FlagUser,
+  VariationOptions,
+  Unsubscribe,
+} from '../adapters/base.ts';
 import type {
   DriftReporter,
   DriftAggregate,
   DriftKind,
+  DriftSecondaryValue,
 } from '../drift-reporter.ts';
 import { ConsoleDriftReporter } from '../reporters/console.ts';
 
@@ -55,6 +60,17 @@ export interface FeatureFlagsConfig {
 const DEFAULT_FLUSH_INTERVAL_MS = 30_000;
 
 /**
+ * When several secondaries disagree in different ways, the aggregate's `kind`
+ * reports the most significant one. A flag the primary doesn't know about at
+ * all is more actionable than two providers returning different values.
+ */
+const KIND_PRIORITY: Record<DriftKind, number> = {
+  missing_in_primary: 3,
+  missing_in_secondary: 2,
+  value_drift: 1,
+};
+
+/**
  * Public feature-flag service. See README for lifecycle and usage.
  *
  * Reactivity: a single tracked `_revision` is bumped whenever any adapter
@@ -73,10 +89,19 @@ export default class FeatureFlagsService extends Service {
   @tracked private _revision = 0;
 
   private primaryName: string | null = null;
+  private driftEnabled = false;
   private driftAggregates: Map<string, DriftAggregate> = new Map();
   private driftReporter: DriftReporter = new ConsoleDriftReporter();
   private flushIntervalId: ReturnType<typeof setInterval> | null = null;
-  private unloadHandler: (() => void) | null = null;
+  private visibilityHandler: (() => void) | null = null;
+
+  /**
+   * Unsubscribe handles returned by each adapter's `onAnyChange`. Held so
+   * `teardown()` can detach them — otherwise a re-initialize or a destroyed
+   * service leaves adapters holding callbacks that bump `_revision` on a
+   * dead service.
+   */
+  private changeUnsubscribes: Unsubscribe[] = [];
 
   setDriftReporter(reporter: DriftReporter): void {
     this.driftReporter = reporter;
@@ -90,21 +115,34 @@ export default class FeatureFlagsService extends Service {
       throw new Error('[feature-flags] No primary provider configured.');
     }
 
+    // Re-initializing is legitimate (tests, swapping providers at runtime).
+    // Without this the previous flush interval, event listeners and adapter
+    // subscriptions all leak.
+    if (this.primary || this.secondaries.size > 0) {
+      await this.teardown();
+    }
+
     const activeRegistry =
       registry ?? (await import('../adapters/index.ts')).defaultAdapters;
 
     const primaryLoader = activeRegistry[config.primary];
     if (!primaryLoader) {
       throw new Error(
-        `[feature-flags] No adapter registered for primary '${config.primary}'.`,
+        `[feature-flags] No adapter registered for primary '${config.primary}'. ` +
+          `Registered adapters: ${Object.keys(activeRegistry).join(', ') || '(none)'}. ` +
+          `Provider adapters are opt-in — import the one you need (e.g. ` +
+          `\`import LaunchDarklyAdapter from 'ember-feature-flags/adapters/launch-darkly'\`) ` +
+          `and add it to the registry you pass to initialize().`,
       );
     }
 
-    const primaryConfig = config.providers[config.primary] ?? {};
+    const primaryConfig = config.providers?.[config.primary] ?? {};
     const PrimaryClass = await primaryLoader();
     const primaryInstance = new PrimaryClass();
     await primaryInstance.init(primaryConfig);
-    primaryInstance.onAnyChange(() => this._revision++);
+    this.changeUnsubscribes.push(
+      primaryInstance.onAnyChange(() => this._revision++),
+    );
 
     this.primary = primaryInstance;
     this.primaryName = config.primary;
@@ -116,11 +154,13 @@ export default class FeatureFlagsService extends Service {
           throw new Error(`No adapter registered for secondary '${name}'.`);
         }
 
-        const secondaryConfig = config.providers[name] ?? {};
+        const secondaryConfig = config.providers?.[name] ?? {};
         const SecondaryClass = await loader();
         const adapter = new SecondaryClass();
         await adapter.init(secondaryConfig);
-        adapter.onAnyChange(() => this._revision++);
+        this.changeUnsubscribes.push(
+          adapter.onAnyChange(() => this._revision++),
+        );
         this.secondaries.set(name, adapter);
       } catch (err) {
         console.error(
@@ -131,7 +171,13 @@ export default class FeatureFlagsService extends Service {
       }
     }
 
-    if (config.drift?.enabled !== false && this.secondaries.size > 0) {
+    // `drift.enabled: false` must switch off drift *detection*, not just the
+    // flush timer. Otherwise aggregates accumulate on every flag read and are
+    // never drained.
+    this.driftEnabled =
+      config.drift?.enabled !== false && this.secondaries.size > 0;
+
+    if (this.driftEnabled) {
       this.startDriftFlushing(
         config.drift?.flushIntervalMs ?? DEFAULT_FLUSH_INTERVAL_MS,
       );
@@ -173,7 +219,7 @@ export default class FeatureFlagsService extends Service {
     const primaryValue = (this.primary?.variation(flagName, options) ??
       options.defaultValue) as T;
 
-    if (this.secondaries.size > 0 && this.primary && this.primaryName) {
+    if (this.driftEnabled && this.primary && this.primaryName) {
       this.checkDrift(flagName, primaryValue);
     }
 
@@ -188,11 +234,9 @@ export default class FeatureFlagsService extends Service {
   }
 
   private checkDrift(flagName: string, primaryValue: unknown): void {
-    const secondaryValues: Record<string, unknown> = {};
-    let hasMismatch = false;
-    let kind: DriftKind = 'value_drift';
+    const secondaryValues: Record<string, DriftSecondaryValue> = {};
+    let aggregateKind: DriftKind | null = null;
 
-    const missingSentinel = Symbol('missing');
     const primaryMissing = primaryValue === undefined;
 
     for (const [name, adapter] of this.secondaries) {
@@ -208,23 +252,32 @@ export default class FeatureFlagsService extends Service {
       }
 
       const secondaryMissing = value === undefined;
+      let kind: DriftKind;
 
       if (primaryMissing && !secondaryMissing) {
-        hasMismatch = true;
         kind = 'missing_in_primary';
-        secondaryValues[name] = value;
+        secondaryValues[name] = { kind, value };
       } else if (!primaryMissing && secondaryMissing) {
-        hasMismatch = true;
         kind = 'missing_in_secondary';
-        secondaryValues[name] = missingSentinel;
+        // No `value` key at all — `missing: true` is the signal. A sentinel
+        // Symbol here would vanish from any JSON payload.
+        secondaryValues[name] = { kind, missing: true };
       } else if (value !== primaryValue) {
-        hasMismatch = true;
         kind = 'value_drift';
-        secondaryValues[name] = value;
+        secondaryValues[name] = { kind, value };
+      } else {
+        continue;
+      }
+
+      if (
+        aggregateKind === null ||
+        KIND_PRIORITY[kind] > KIND_PRIORITY[aggregateKind]
+      ) {
+        aggregateKind = kind;
       }
     }
 
-    if (!hasMismatch) return;
+    if (aggregateKind === null) return;
 
     const now = Date.now();
     const existing = this.driftAggregates.get(flagName);
@@ -233,11 +286,11 @@ export default class FeatureFlagsService extends Service {
       existing.lastSeen = now;
       existing.secondaries = secondaryValues;
       existing.primary.value = primaryValue;
-      existing.kind = kind;
+      existing.kind = aggregateKind;
     } else {
       this.driftAggregates.set(flagName, {
         flag: flagName,
-        kind,
+        kind: aggregateKind,
         primary: { provider: this.primaryName as string, value: primaryValue },
         secondaries: secondaryValues,
         count: 1,
@@ -266,32 +319,78 @@ export default class FeatureFlagsService extends Service {
   private startDriftFlushing(intervalMs: number): void {
     this.flushIntervalId = setInterval(() => this.flushDrift(), intervalMs);
 
-    if (typeof window !== 'undefined') {
-      this.unloadHandler = () => this.flushDrift();
-      window.addEventListener('visibilitychange', this.unloadHandler);
-      window.addEventListener('pagehide', this.unloadHandler);
+    if (typeof document !== 'undefined') {
+      // `visibilitychange` fires on both hide and show; only a hide is a
+      // last-chance opportunity to get the batch out. `pagehide` covers
+      // navigations that skip the hidden state.
+      this.visibilityHandler = () => {
+        if (document.visibilityState === 'hidden') this.flushDrift();
+      };
+      document.addEventListener('visibilitychange', this.visibilityHandler);
+      window.addEventListener('pagehide', this.visibilityHandler);
     }
   }
 
-  willDestroy(): void {
-    super.willDestroy();
-
+  /**
+   * Detach timers, listeners and adapter subscriptions, flush whatever is
+   * pending, and shut the adapters down. Idempotent.
+   */
+  private async teardown(): Promise<void> {
     if (this.flushIntervalId !== null) {
       clearInterval(this.flushIntervalId);
       this.flushIntervalId = null;
     }
-    if (this.unloadHandler && typeof window !== 'undefined') {
-      window.removeEventListener('visibilitychange', this.unloadHandler);
-      window.removeEventListener('pagehide', this.unloadHandler);
-      this.unloadHandler = null;
+
+    if (this.visibilityHandler) {
+      if (typeof document !== 'undefined') {
+        document.removeEventListener(
+          'visibilitychange',
+          this.visibilityHandler,
+        );
+        window.removeEventListener('pagehide', this.visibilityHandler);
+      }
+      this.visibilityHandler = null;
     }
+
+    for (const unsubscribe of this.changeUnsubscribes) {
+      try {
+        unsubscribe();
+      } catch (err) {
+        console.error('[feature-flags] Adapter unsubscribe threw:', err);
+      }
+    }
+    this.changeUnsubscribes = [];
 
     this.flushDrift();
 
-    void this.primary?.shutdown();
-    for (const adapter of this.secondaries.values()) {
-      void adapter.shutdown();
-    }
+    const adapters = [
+      ...(this.primary ? [this.primary] : []),
+      ...this.secondaries.values(),
+    ];
+
+    this.primary = null;
+    this.primaryName = null;
+    this.secondaries = new Map();
+    this.brokenSecondaries = new Set();
+    this.driftEnabled = false;
+
+    await Promise.all(
+      adapters.map(async (adapter) => {
+        try {
+          await adapter.shutdown();
+        } catch (err) {
+          console.error('[feature-flags] Adapter shutdown threw:', err);
+        }
+      }),
+    );
+  }
+
+  willDestroy(): void {
+    super.willDestroy();
+    // `willDestroy` is synchronous; shutdown is fire-and-forget. The
+    // synchronous parts of teardown (timer, listeners, flush) have already
+    // run by the time this promise is pending.
+    void this.teardown();
   }
 }
 

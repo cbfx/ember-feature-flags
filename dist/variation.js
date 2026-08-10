@@ -26,6 +26,8 @@ function _setOwner(owner) {
 }
 function getService() {
   if (!cachedOwner) throw new Error('feature-flags not initialized');
+  // The service registry augmentation in services/feature-flags.ts already
+  // types this lookup, so no cast is needed.
   return cachedOwner.lookup('service:feature-flags');
 }
 
@@ -42,12 +44,31 @@ async function initialize(config, registry) {
 }
 
 /**
+ * Swap the anonymous user for the real one, from outside a component. Fans out
+ * to the primary and every healthy secondary in parallel.
+ *
+ * `user.id` is mapped to each provider's own identifier by its adapter — LD's
+ * context `key`, App Configuration's entity id — so callers pass one shape
+ * regardless of provider. `traits` are merged in as extra targeting
+ * attributes.
+ *
+ * Call this once you know who the user is; every flag read after it is
+ * evaluated against that identity.
+ */
+async function identify(user, traits = {}) {
+  await getService().identify(user, traits);
+}
+
+/**
  * Read a flag's value from outside a component. Not reactive — reads at
  * call time.
  */
 function variation(flagName, options) {
   return getService().variation(flagName, options);
 }
+function setDriftReporter(reporter) {
+  getService().setDriftReporter(reporter);
+}
 
-export { _setOwner, initialize, variation };
+export { _setOwner, identify, initialize, setDriftReporter, variation };
 //# sourceMappingURL=variation.js.map

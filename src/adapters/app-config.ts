@@ -8,6 +8,7 @@ import BaseFeatureFlagAdapter, {
   type ChangeCallback,
   type Unsubscribe,
 } from './base.ts';
+import { randomId } from '../utils/uuid.ts';
 
 /**
  * Config shape for the IBM App Configuration adapter, matching what
@@ -70,7 +71,7 @@ interface AppConfigClient {
  */
 export default class AppConfigAdapter extends BaseFeatureFlagAdapter<AppConfigConfig> {
   private client: AppConfigClient | null = null;
-  private entityId: string = crypto.randomUUID();
+  private entityId: string = randomId();
   private entityAttributes: Record<string, unknown> = {};
   private localFlags: Record<string, unknown> = {};
   private changeCallbacks: Set<ChangeCallback> = new Set();

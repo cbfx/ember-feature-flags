@@ -19,6 +19,14 @@
     },
     "./addon-main.js": "./addon-main.cjs",
     "./*.css": "./dist/*.css",
+    "./adapters": {
+      "types": "./declarations/adapters/index.d.ts",
+      "default": "./dist/adapters/index.js"
+    },
+    "./reporters": {
+      "types": "./declarations/reporters/index.d.ts",
+      "default": "./dist/reporters/index.js"
+    },
     "./test-support": {
       "types": "./declarations/test-support/index.d.ts",
       "default": "./dist/test-support/index.js"
@@ -106,23 +114,15 @@
     "vite": "^7.1.9"
   },
   "peerDependencies": {
-    "@sentry/browser": ">= 7.0.0",
     "ember-launch-darkly": ">= 6.0.0",
     "ember-source": ">= 6.7.0",
-    "ibm-appconfiguration-js-client-sdk": ">= 0.3.0",
-    "posthog-js": ">= 1.0.0"
+    "ibm-appconfiguration-js-client-sdk": ">= 0.3.0"
   },
   "peerDependenciesMeta": {
     "ember-launch-darkly": {
       "optional": true
     },
     "ibm-appconfiguration-js-client-sdk": {
-      "optional": true
-    },
-    "@sentry/browser": {
-      "optional": true
-    },
-    "posthog-js": {
       "optional": true
     }
   },

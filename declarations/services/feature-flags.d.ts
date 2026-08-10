@@ -51,10 +51,18 @@ export default class FeatureFlagsService extends Service {
     private brokenSecondaries;
     private _revision;
     private primaryName;
+    private driftEnabled;
     private driftAggregates;
     private driftReporter;
     private flushIntervalId;
-    private unloadHandler;
+    private visibilityHandler;
+    /**
+     * Unsubscribe handles returned by each adapter's `onAnyChange`. Held so
+     * `teardown()` can detach them — otherwise a re-initialize or a destroyed
+     * service leaves adapters holding callbacks that bump `_revision` on a
+     * dead service.
+     */
+    private changeUnsubscribes;
     setDriftReporter(reporter: DriftReporter): void;
     initialize(config: FeatureFlagsConfig, registry?: AdapterRegistry): Promise<void>;
     identify(user: FlagUser, traits?: Record<string, unknown>): Promise<void>;
@@ -63,6 +71,11 @@ export default class FeatureFlagsService extends Service {
     private checkDrift;
     flushDrift(): void;
     private startDriftFlushing;
+    /**
+     * Detach timers, listeners and adapter subscriptions, flush whatever is
+     * pending, and shut the adapters down. Idempotent.
+     */
+    private teardown;
     willDestroy(): void;
 }
 declare module '@ember/service' {

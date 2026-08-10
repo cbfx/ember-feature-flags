@@ -1,5 +1,5 @@
 import Helper from '@ember/component/helper';
-import type FeatureFlagsService from '../services/feature-flags';
+import type FeatureFlagsService from '../services/feature-flags.ts';
 import type { VariationOptions } from '../adapters/base.ts';
 type RenderableValue = string | number | boolean | null | undefined;
 export interface VariationSignature {

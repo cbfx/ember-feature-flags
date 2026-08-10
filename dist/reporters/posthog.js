@@ -1,24 +1,40 @@
-import posthog from 'posthog-js';
+/**
+ * The slice of `posthog-js` this reporter uses.
+ *
+ * Declared structurally rather than imported so the addon carries no
+ * dependency on PostHog at all — see the note in `sentry.ts` for why a
+ * module-scope import of an optional peer breaks consumers who don't have it.
+ *
+ * The default export of `posthog-js` satisfies this.
+ */
 
 /**
- * Reports drift to PostHog via `posthog.capture`.
+ * Reports drift to PostHog via `capture`.
  *
- * Requires `posthog-js` as an optional peer dependency and that your app
- * has already called `posthog.init(...)` before drifts start flowing. The
- * reporter never handles credentials — PostHog's SDK owns its own project
- * key from the consumer's init call.
+ * Pass in your app's already-initialized PostHog instance. The reporter never
+ * handles credentials — PostHog's SDK owns its own project key from your
+ * `posthog.init` call, which must have happened before drifts start flowing.
+ *
+ *   import posthog from 'posthog-js';
+ *   import { PostHogDriftReporter } from 'ember-feature-flags/reporters';
+ *
+ *   this.featureFlags.setDriftReporter(new PostHogDriftReporter(posthog));
  *
  * Each aggregate becomes one PostHog event with the flag name, drift kind,
  * primary/secondary values, and count as event properties.
  */
 class PostHogDriftReporter {
-  constructor(options = {}) {
+  constructor(posthog, options = {}) {
+    this.posthog = posthog;
     this.options = options;
+    if (!posthog || typeof posthog.capture !== 'function') {
+      throw new Error('[feature-flags] PostHogDriftReporter requires the PostHog instance as its ' + "first argument, e.g. `new PostHogDriftReporter(posthog)` after `import posthog from 'posthog-js'`.");
+    }
   }
   report(aggregates) {
     const eventName = this.options.eventName ?? 'feature_flag_drift';
     for (const agg of aggregates) {
-      posthog.capture(eventName, {
+      this.posthog.capture(eventName, {
         flag: agg.flag,
         kind: agg.kind,
         primary_provider: agg.primary.provider,

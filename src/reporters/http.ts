@@ -1,6 +1,6 @@
-import type { DriftReporter, DriftAggregate } from '../drift-reporter';
+import type { DriftReporter, DriftAggregate } from '../drift-reporter.ts';
 
-interface HttpDriftReporterOptions {
+export interface HttpDriftReporterOptions {
   /**
    * URL that receives the POST. Typically an endpoint on your own backend
    * that attaches real credentials server-side and forwards to Datadog,

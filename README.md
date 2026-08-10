@@ -13,14 +13,16 @@ A provider-agnostic feature flag system for Ember, with shadow-mode drift detect
 pnpm add ember-feature-flags
 ```
 
-Install any provider SDKs you use (declared as optional peer deps):
+Install the provider SDKs you actually use. They're optional peer dependencies, and nothing in the addon's default module graph references them, so you only install what you need:
 
 ```
-pnpm add ember-launch-darkly              # if using LaunchDarkly
-pnpm add ibm-appconfiguration-js-client-sdk   # if using AppConfiguration
-pnpm add @sentry/browser                  # if using SentryDriftReporter
-pnpm add posthog-js                       # if using PostHogDriftReporter
+pnpm add ember-launch-darkly                   # if using the LaunchDarkly adapter
+pnpm add ibm-appconfiguration-js-client-sdk    # if using the AppConfiguration adapter
 ```
+
+`SentryDriftReporter` and `PostHogDriftReporter` are **not** peer dependencies — you pass your app's already-initialized SDK into the constructor, so the addon never imports them. See [Drift reporting](#drift-reporting).
+
+> **Provider adapters are opt-in imports.** `defaultAdapters` contains only the `test` adapter. This isn't an oversight — see [Why provider adapters are opt-in](#why-provider-adapters-are-opt-in).
 
 ## Why
 
@@ -52,19 +54,28 @@ In your application route, register a drift reporter (optional) and initialize w
 ```ts
 // app/routes/application.js
 import { service } from '@ember/service';
+import * as Sentry from '@sentry/browser';
 import { defaultAdapters } from 'ember-feature-flags/adapters';
+import LaunchDarklyAdapter from 'ember-feature-flags/adapters/launch-darkly';
 import { SentryDriftReporter } from 'ember-feature-flags/reporters';
 import config from 'ui/config/environment';
+
+const adapters = {
+  ...defaultAdapters,
+  'launch-darkly': async () => LaunchDarklyAdapter,
+};
 
 export default class ApplicationRoute extends Route {
   @service featureFlags;
 
   async beforeModel() {
-    this.featureFlags.setDriftReporter(new SentryDriftReporter());
-    await this.featureFlags.initialize(config.APP.featureFlags, defaultAdapters);
+    this.featureFlags.setDriftReporter(new SentryDriftReporter(Sentry));
+    await this.featureFlags.initialize(config.APP.featureFlags, adapters);
   }
 }
 ```
+
+Every provider you name in `primary` or `secondaries` must have an entry in the registry you pass to `initialize()`. If it doesn't, `initialize()` throws and tells you which names *are* registered.
 
 ### In templates
 
@@ -145,13 +156,47 @@ const featureFlagsConfig = {
 
 ### Built-in adapters
 
-`defaultAdapters` includes `launch-darkly`, `app-config`, and `test`. Import and pass to `initialize()`:
+| Adapter | Import from | Requires |
+| --- | --- | --- |
+| `test` | included in `defaultAdapters` | nothing |
+| LaunchDarkly | `ember-feature-flags/adapters/launch-darkly` | `ember-launch-darkly` |
+| IBM App Configuration | `ember-feature-flags/adapters/app-config` | `ibm-appconfiguration-js-client-sdk` |
+
+`defaultAdapters` holds only `test`. Add the providers you use:
 
 ```ts
 import { defaultAdapters } from 'ember-feature-flags/adapters';
+import LaunchDarklyAdapter from 'ember-feature-flags/adapters/launch-darkly';
+import AppConfigAdapter from 'ember-feature-flags/adapters/app-config';
 
-await this.featureFlags.initialize(config.APP.featureFlags, defaultAdapters);
+const adapters = {
+  ...defaultAdapters,
+  'launch-darkly': async () => LaunchDarklyAdapter,
+  'app-config': async () => AppConfigAdapter,
+};
+
+await this.featureFlags.initialize(config.APP.featureFlags, adapters);
 ```
+
+Each adapter's config type lives alongside it:
+
+```ts
+import type { LaunchDarklyConfig } from 'ember-feature-flags/adapters/launch-darkly';
+import type { AppConfigConfig } from 'ember-feature-flags/adapters/app-config';
+```
+
+### Why provider adapters are opt-in
+
+An earlier version put every adapter in `defaultAdapters` and re-exported the adapter classes from the barrel. That made the optional peer dependencies effectively mandatory, and broke consumer builds with:
+
+```
+[plugin embroider-resolver] Error: ember-feature-flags is trying to import from
+ibm-appconfiguration-js-client-sdk but that is not one of its explicit dependencies
+```
+
+Bundlers don't care whether an import is static or dynamic. A lazy `import()` still puts the target module in the graph, which still puts that module's SDK imports in the graph — so Vite's dependency scanner tried to pre-bundle IBM's SDK in apps that only use LaunchDarkly, and the build died before any app code ran. Lazy loaders control *when code runs*, not *what the bundler must resolve*.
+
+The only thing that keeps an uninstalled optional peer out of the graph is not importing the module that needs it. Hence the separate entry points.
 
 ### Custom adapters
 
@@ -182,6 +227,8 @@ const adapters = {
 
 await this.featureFlags.initialize(config.APP.featureFlags, adapters);
 ```
+
+If your adapter wraps an SDK that not every consumer of *your* app has, keep it in its own module for the same reason described above.
 
 ## Drift reporting
 
@@ -221,13 +268,16 @@ this.featureFlags.setDriftReporter(
 
 #### `SentryDriftReporter`
 
-Uses your app's already-initialized `@sentry/browser` singleton. Requires `@sentry/browser` as an optional peer dependency and that your app has called `Sentry.init(...)` before drifts start flowing.
+Takes your app's Sentry namespace as its first argument. The addon does not import or depend on `@sentry/browser` at all — you already have it, so passing it in is both simpler and keeps `ember-feature-flags/reporters` importable by apps that don't use Sentry.
+
+Your app must have called `Sentry.init(...)` before drifts start flowing.
 
 ```ts
+import * as Sentry from '@sentry/browser';
 import { SentryDriftReporter } from 'ember-feature-flags/reporters';
 
 this.featureFlags.setDriftReporter(
-  new SentryDriftReporter({
+  new SentryDriftReporter(Sentry, {
     level: 'warning',
     category: 'feature-flag-drift',
   })
@@ -236,13 +286,14 @@ this.featureFlags.setDriftReporter(
 
 #### `PostHogDriftReporter`
 
-Uses your app's already-initialized `posthog-js` singleton. Requires `posthog-js` as an optional peer dependency.
+Takes your app's PostHog instance as its first argument, for the same reason as `SentryDriftReporter`. Your app must have called `posthog.init(...)` first.
 
 ```ts
+import posthog from 'posthog-js';
 import { PostHogDriftReporter } from 'ember-feature-flags/reporters';
 
 this.featureFlags.setDriftReporter(
-  new PostHogDriftReporter({ eventName: 'feature_flag_drift' })
+  new PostHogDriftReporter(posthog, { eventName: 'feature_flag_drift' })
 );
 ```
 
@@ -264,6 +315,22 @@ export class MyReporter implements DriftReporter {
 }
 ```
 
+Every `DriftAggregate` is JSON-serializable. Each entry in `secondaries` is `{ kind, value }`, or `{ kind, missing: true }` when that secondary had no value for the flag:
+
+```ts
+{
+  flag: 'new-checkout-flow',
+  kind: 'missing_in_secondary',
+  primary: { provider: 'launch-darkly', value: true },
+  secondaries: { 'app-config': { kind: 'missing_in_secondary', missing: true } },
+  count: 3,
+  firstSeen: 1770000000000,
+  lastSeen: 1770000012000,
+}
+```
+
+When several secondaries disagree in different ways, the top-level `kind` is the most significant one (`missing_in_primary` > `missing_in_secondary` > `value_drift`); per-secondary detail stays in `secondaries[name].kind`.
+
 ## Migrating between providers
 
 1. Add the new provider as a `secondary`. Ship it. Drift reports tell you where flags disagree.
@@ -275,19 +342,35 @@ Each step is a config change, not a code change.
 
 ## Testing
 
-Tests use the `test` provider automatically. Secondaries and drift detection are disabled in tests — only the primary is exercised. To control flags in a test:
+Call `setupFeatureFlags(hooks)` in any module that reads flags. It initializes the service with the `test` provider before each test and resets flags after. No secondaries are configured, so drift detection never runs in tests.
 
 ```ts
-import { withVariation } from 'ember-feature-flags/test-support';
+import {
+  setupFeatureFlags,
+  withVariation,
+} from 'ember-feature-flags/test-support';
 
-test('shows new flow when flag is on', async function (assert) {
-  withVariation('new-checkout-flow', true);
-  await visit('/checkout');
-  assert.dom('[data-test-new-checkout]').exists();
+module('Acceptance | checkout', function (hooks) {
+  setupApplicationTest(hooks);
+  setupFeatureFlags(hooks);
+
+  test('shows new flow when flag is on', async function (assert) {
+    withVariation('new-checkout-flow', true);
+    await visit('/checkout');
+    assert.dom('[data-test-new-checkout]').exists();
+  });
 });
 ```
 
-Flags reset between tests automatically.
+`setupFeatureFlags` optionally seeds flags for the whole module, and `withVariations` sets several at once:
+
+```ts
+setupFeatureFlags(hooks, { flags: { 'new-nav': true } });
+
+withVariations({ 'new-checkout-flow': true, 'promo-banner': false });
+```
+
+Flags reset between tests automatically. `withVariation` throws a descriptive error if `setupFeatureFlags(hooks)` is missing.
 
 ## Contributing
 

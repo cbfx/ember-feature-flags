@@ -9,6 +9,7 @@ import BaseFeatureFlagAdapter, {
   type ChangeCallback,
   type Unsubscribe,
 } from './base.ts';
+import { randomId } from '../utils/uuid.ts';
 
 /**
  * Config shape for the LaunchDarkly adapter, matching what
@@ -128,13 +129,32 @@ export default class LaunchDarklyAdapter extends BaseFeatureFlagAdapter<LaunchDa
         timeoutFailureCooldownMs,
       );
       // Tear down the failed remote client before re-initing locally,
-      // otherwise we leak its background reconnect attempts.
-      await context.destroy({ force: true });
-      await initialize(clientSideId, anonymousContext, {
+      // otherwise we leak its background reconnect attempts. A failed init
+      // can leave the context in a state where destroy() itself rejects —
+      // that must not mask the local-mode fallback below.
+      try {
+        await context?.destroy({ force: true });
+      } catch (destroyError) {
+        console.warn(
+          'LaunchDarkly failed to tear down after init failure:',
+          destroyError,
+        );
+      }
+
+      const fallback = await initialize(clientSideId, anonymousContext, {
         ...options,
         mode: 'local',
         localFlags,
       });
+
+      if (!fallback.isOk) {
+        // Nothing left to try. Surface it loudly rather than leaving the app
+        // silently reading `defaultValue` for every flag.
+        console.error(
+          'LaunchDarkly local-mode fallback also failed:',
+          fallback.error,
+        );
+      }
     }
   }
 
@@ -157,7 +177,7 @@ export default class LaunchDarklyAdapter extends BaseFeatureFlagAdapter<LaunchDa
       }
       const fresh = {
         anonymous: true as const,
-        key: crypto.randomUUID(),
+        key: randomId(),
         ...attributes,
       };
       window.localStorage.setItem(storageKey, JSON.stringify(fresh));
@@ -166,7 +186,7 @@ export default class LaunchDarklyAdapter extends BaseFeatureFlagAdapter<LaunchDa
 
     return {
       anonymous: true,
-      key: crypto.randomUUID(),
+      key: randomId(),
       ...attributes,
     };
   }

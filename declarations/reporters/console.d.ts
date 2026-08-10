@@ -1,4 +1,4 @@
-import type { DriftReporter, DriftAggregate } from '../drift-reporter';
+import type { DriftReporter, DriftAggregate } from '../drift-reporter.ts';
 /**
  * Default drift reporter. Logs each aggregate to `console.warn`.
  *

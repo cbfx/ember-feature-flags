@@ -10,7 +10,12 @@ export interface TestConfig {
 
 export default class TestFeatureFlagAdapter extends BaseFeatureFlagAdapter {
   private flags = new Map<string, unknown>();
-  private changeCallback: ChangeCallback | null = null;
+  /**
+   * A Set, not a single slot: the previous single-callback field meant a
+   * second subscriber silently evicted the first, and unsubscribing the
+   * first would detach the second.
+   */
+  private changeCallbacks: Set<ChangeCallback> = new Set();
 
   // eslint-disable-next-line ember/classic-decorator-hooks
   init(config: TestConfig): Promise<void> {
@@ -34,19 +39,23 @@ export default class TestFeatureFlagAdapter extends BaseFeatureFlagAdapter {
   }
 
   onAnyChange(callback: ChangeCallback): Unsubscribe {
-    this.changeCallback = callback;
+    this.changeCallbacks.add(callback);
     return () => {
-      this.changeCallback = null;
+      this.changeCallbacks.delete(callback);
     };
+  }
+
+  private notify(): void {
+    for (const cb of this.changeCallbacks) cb();
   }
 
   setVariation(flagName: string, value: unknown): void {
     this.flags.set(flagName, value);
-    this.changeCallback?.();
+    this.notify();
   }
 
   reset(): void {
     this.flags.clear();
-    this.changeCallback?.();
+    this.notify();
   }
 }

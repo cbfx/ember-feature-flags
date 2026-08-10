@@ -2,7 +2,12 @@ import BaseFeatureFlagAdapter from './base.js';
 
 class TestFeatureFlagAdapter extends BaseFeatureFlagAdapter {
   flags = new Map();
-  changeCallback = null;
+  /**
+   * A Set, not a single slot: the previous single-callback field meant a
+   * second subscriber silently evicted the first, and unsubscribing the
+   * first would detach the second.
+   */
+  changeCallbacks = new Set();
 
   // eslint-disable-next-line ember/classic-decorator-hooks
   init(config) {
@@ -20,18 +25,21 @@ class TestFeatureFlagAdapter extends BaseFeatureFlagAdapter {
     return this.flags.has(flagName) ? this.flags.get(flagName) : defaultValue;
   }
   onAnyChange(callback) {
-    this.changeCallback = callback;
+    this.changeCallbacks.add(callback);
     return () => {
-      this.changeCallback = null;
+      this.changeCallbacks.delete(callback);
     };
+  }
+  notify() {
+    for (const cb of this.changeCallbacks) cb();
   }
   setVariation(flagName, value) {
     this.flags.set(flagName, value);
-    this.changeCallback?.();
+    this.notify();
   }
   reset() {
     this.flags.clear();
-    this.changeCallback?.();
+    this.notify();
   }
 }
 

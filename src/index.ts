@@ -1,22 +1,30 @@
 /**
  * Public entry point for `ember-feature-flags`. Consumers import from here:
  *
- *   import { variation, isEnabled } from 'ember-feature-flags';
+ *   import { variation, initialize } from 'ember-feature-flags';
  *   import type { FlagUser, DriftReporter } from 'ember-feature-flags';
  *
  * The service is registered via Ember's container (`@service featureFlags`)
  * and does not need to be imported directly. The template helper is
  * registered by the addon's manifest and used as `{{variation "flag-name"}}`.
  *
- * Adapters and reporters have their own subpath exports so consumers only
- * ship what they use:
+ * This module deliberately pulls in **no third-party SDKs**, so importing it
+ * never forces an optional peer dependency to be installed. Adapters and
+ * reporters have their own subpath exports:
  *
- *   import { defaultAdapters, LaunchDarklyAdapter } from 'ember-feature-flags/adapters';
+ *   import { defaultAdapters } from 'ember-feature-flags/adapters';
+ *   import LaunchDarklyAdapter from 'ember-feature-flags/adapters/launch-darkly';
  *   import { SentryDriftReporter } from 'ember-feature-flags/reporters';
  */
 
 // Importable variation function for use in plain JS modules (routes, utils).
-export { variation, initialize, _setOwner } from './variation.ts';
+export {
+  initialize,
+  identify,
+  setDriftReporter,
+  variation,
+  _setOwner,
+} from './variation.ts';
 
 // Types every consumer needs to work with the API.
 export type {
@@ -33,8 +41,9 @@ export { default as BaseFeatureFlagAdapter } from './adapters/base.ts';
 export type {
   DriftReporter,
   DriftAggregate,
+  DriftSecondaryValue,
   DriftKind,
-} from './drift-reporter';
+} from './drift-reporter.ts';
 
 // Service config + adapter-registry types so consumers can strongly type
 // their config block and their custom adapter registration.
@@ -42,6 +51,9 @@ export type {
   FeatureFlagsConfig,
   AdapterRegistry,
   AdapterLoader,
-} from './services/feature-flags';
+} from './services/feature-flags.ts';
 
-export { defaultAdapters } from './adapters/index.ts';
+// NOTE: `defaultAdapters` is intentionally *not* re-exported here. Doing so
+// would put every provider adapter — and therefore every provider SDK — into
+// the module graph of anyone who imports anything from 'ember-feature-flags'.
+// Import it from 'ember-feature-flags/adapters' instead.

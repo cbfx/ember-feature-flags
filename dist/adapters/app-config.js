@@ -1,4 +1,5 @@
 import BaseFeatureFlagAdapter from './base.js';
+import { randomId } from '../utils/uuid.js';
 
 /**
  * Copyright IBM Corp. 2020, 2026
@@ -39,7 +40,7 @@ import BaseFeatureFlagAdapter from './base.js';
  */
 class AppConfigAdapter extends BaseFeatureFlagAdapter {
   client = null;
-  entityId = crypto.randomUUID();
+  entityId = randomId();
   entityAttributes = {};
   localFlags = {};
   changeCallbacks = new Set();
