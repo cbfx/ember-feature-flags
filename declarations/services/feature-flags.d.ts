@@ -1,6 +1,3 @@
-/**
- * Copyright IBM Corp. 2020, 2026
- */
 import Service from '@ember/service';
 import type BaseFeatureFlagAdapter from '../adapters/base.ts';
 import type { FlagUser, VariationOptions } from '../adapters/base.ts';

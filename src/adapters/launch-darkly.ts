@@ -111,6 +111,7 @@ export default class LaunchDarklyAdapter extends BaseFeatureFlagAdapter<LaunchDa
 
     const initOptions = {
       ...options,
+      ...(localFlags !== undefined && { localFlags }),
       ...(effectiveTimeoutMs !== undefined && {
         timeout: effectiveTimeoutMs / 1000,
       }),

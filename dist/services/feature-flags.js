@@ -3,10 +3,6 @@ import { tracked } from '@glimmer/tracking';
 import { ConsoleDriftReporter } from '../reporters/console.js';
 import { g, i } from 'decorator-transforms/runtime-esm';
 
-/**
- * Copyright IBM Corp. 2020, 2026
- */
-
 const DEFAULT_FLUSH_INTERVAL_MS = 30_000;
 
 /**

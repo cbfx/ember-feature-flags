@@ -1,13 +1,13 @@
 {
   "name": "ember-feature-flags",
   "version": "0.0.0",
-  "packageManager": "pnpm@10.26.0",
+  "packageManager": "pnpm@11.5.3",
   "description": "Provider-agnostic feature flag service for Ember with shadow-mode drift detection between multiple providers. Ships with LaunchDarkly and IBM App Configuration adapters and reporters for Console, HTTP, Sentry, and PostHog.",
   "keywords": [
     "ember-addon"
   ],
   "repository": "",
-  "license": "MIT",
+  "license": "UNDEFINED",
   "author": "Chris Burrell",
   "imports": {
     "#src/*": "./src/*"
@@ -135,6 +135,7 @@
     "main": "addon-main.cjs",
     "app-js": {
       "./helpers/variation.js": "./dist/_app_/helpers/variation.js",
+      "./instance-initializers/feature-flags.js": "./dist/_app_/instance-initializers/feature-flags.js",
       "./services/feature-flags.js": "./dist/_app_/services/feature-flags.js"
     }
   }

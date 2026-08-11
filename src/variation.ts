@@ -1,7 +1,3 @@
-/**
- * Copyright IBM Corp. 2020, 2026
- */
-
 import type ApplicationInstance from '@ember/application/instance';
 import type { FlagUser, VariationOptions } from './adapters/base.ts';
 import type FeatureFlagsService from './services/feature-flags.ts';

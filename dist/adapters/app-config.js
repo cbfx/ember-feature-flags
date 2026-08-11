@@ -2,11 +2,6 @@ import BaseFeatureFlagAdapter from './base.js';
 import { randomId } from '../utils/uuid.js';
 
 /**
- * Copyright IBM Corp. 2020, 2026
- */
-
-
-/**
  * Config shape for the IBM App Configuration adapter, matching what
  * the host's `FEATURE_FLAGS.providers['app-config']` block sets.
  *

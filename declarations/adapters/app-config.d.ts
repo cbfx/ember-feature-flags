@@ -1,6 +1,3 @@
-/**
- * Copyright IBM Corp. 2020, 2026
- */
 import BaseFeatureFlagAdapter, { type FlagUser, type VariationOptions, type ChangeCallback, type Unsubscribe } from './base.ts';
 /**
  * Config shape for the IBM App Configuration adapter, matching what

@@ -1,7 +1,3 @@
-/**
- * Copyright IBM Corp. 2020, 2026
- */
-
 import BaseFeatureFlagAdapter, {
   type FlagUser,
   type VariationOptions,

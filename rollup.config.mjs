@@ -38,6 +38,7 @@ export default {
     addon.appReexports([
       'components/**/*.js',
       'helpers/**/*.js',
+      'instance-initializers/**/*.js',
       'modifiers/**/*.js',
       'services/**/*.js',
     ]),

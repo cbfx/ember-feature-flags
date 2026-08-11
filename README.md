@@ -375,7 +375,3 @@ Flags reset between tests automatically. `withVariation` throws a descriptive er
 ## Contributing
 
 See the [Contributing](CONTRIBUTING.md) guide for details.
-
-## License
-
-This project is licensed under the [MIT License](LICENSE.md).

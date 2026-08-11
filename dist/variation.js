@@ -1,10 +1,6 @@
 export { default as BaseFeatureFlagAdapter } from './adapters/base.js';
 
 /**
- * Copyright IBM Corp. 2020, 2026
- */
-
-/**
  * Importable API for use in plain JS modules — routes, utilities, anywhere
  * `@service` injection isn't ergonomic.
  *

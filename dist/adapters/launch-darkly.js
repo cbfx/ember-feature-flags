@@ -50,6 +50,9 @@ class LaunchDarklyAdapter extends BaseFeatureFlagAdapter {
     const effectiveTimeoutMs = this.resolveTimeout(timeoutMs, shortenedTimeoutMs, timeoutFailureStorageKey);
     const initOptions = {
       ...options,
+      ...(localFlags !== undefined && {
+        localFlags
+      }),
       ...(effectiveTimeoutMs !== undefined && {
         timeout: effectiveTimeoutMs / 1000
       })

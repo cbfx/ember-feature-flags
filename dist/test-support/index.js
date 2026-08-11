@@ -1,3 +1,5 @@
+import { settled } from '@ember/test-helpers';
+import FeatureFlagsService from '../services/feature-flags.js';
 import { defaultAdapters } from '../adapters/index.js';
 
 /**
@@ -5,72 +7,46 @@ import { defaultAdapters } from '../adapters/index.js';
  */
 
 let currentService = null;
-function testAdapter() {
-  if (!currentService) {
-    throw new Error('[feature-flags] No active test service. Call `setupFeatureFlags(hooks)` in ' + 'your module, alongside setupRenderingTest/setupApplicationTest.');
-  }
-  const adapter = currentService.primary;
-
-  // A test that re-initializes with a real provider replaces `primary`, and
-  // the previous code then called `.setVariation` / `.reset` on whatever was
-  // there and threw an opaque "not a function" TypeError.
-  if (!adapter || typeof adapter.setVariation !== 'function') {
-    throw new Error('[feature-flags] The primary adapter is not the test adapter. Something in ' + 'this test re-initialized the service with a different provider, so test ' + 'flag helpers no longer apply.');
-  }
-  return adapter;
-}
-
-/**
- * Register in QUnit modules alongside `setupApplicationTest(hooks)` /
- * `setupRenderingTest(hooks)`. Initializes the feature-flag service with
- * the test adapter before each test and resets flags after.
- *
- *   module('Acceptance | checkout', function (hooks) {
- *     setupApplicationTest(hooks);
- *     setupFeatureFlags(hooks);
- *   });
- *
- * Secondaries and drift detection are never configured here, so tests only
- * ever exercise the primary.
- */
-function setupFeatureFlags(hooks, options = {}) {
+function setupFeatureFlags(hooks) {
   hooks.beforeEach(async function () {
-    currentService = this.owner.lookup('service:feature-flags');
+    if (!this.owner) {
+      throw new Error('You must call one of the ember-qunit setupTest(), setupRenderingTest() or setupApplicationTest() methods before calling setupFeatureFlags()');
+    }
+    const owner = this.owner;
+    if (!owner.hasRegistration('service:feature-flags')) {
+      owner.register('service:feature-flags', FeatureFlagsService);
+    }
+    currentService = owner.lookup('service:feature-flags');
+    const config = owner.resolveRegistration('config:environment');
+    const localFlags = Object.keys(config?.launchDarkly?.localFlags ?? {}).reduce((acc, key) => {
+      acc[key] = false;
+      return acc;
+    }, {});
     await currentService.initialize({
       primary: 'test',
       providers: {
         test: {
-          flags: options.flags ?? {}
+          flags: localFlags
         }
       }
     }, defaultAdapters);
+    this.withVariation = (key, value = true) => {
+      const adapter = currentService?.primary;
+      if (!adapter || typeof adapter.setVariation !== 'function') {
+        throw new Error('Feature flags test adapter is missing. Ensure `setupFeatureFlags` has initialized correctly.');
+      }
+      adapter.setVariation(key, value);
+      return settled();
+    };
   });
-  hooks.afterEach(function () {
+  hooks.afterEach(async function () {
     const adapter = currentService?.primary;
-    if (adapter && typeof adapter.reset === 'function') {
-      adapter.reset();
-    }
+    adapter?.reset();
+    await settled();
     currentService = null;
+    delete this.withVariation;
   });
 }
 
-/**
- * Set a flag's value for the current test. Must be called after
- * `setupFeatureFlags(hooks)` has run.
- */
-function withVariation(flag, value) {
-  testAdapter().setVariation(flag, value);
-}
-
-/**
- * Set several flags at once.
- */
-function withVariations(flags) {
-  const adapter = testAdapter();
-  for (const [flag, value] of Object.entries(flags)) {
-    adapter.setVariation(flag, value);
-  }
-}
-
-export { setupFeatureFlags, withVariation, withVariations };
+export { setupFeatureFlags };
 //# sourceMappingURL=index.js.map
