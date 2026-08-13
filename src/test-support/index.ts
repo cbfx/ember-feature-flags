@@ -8,15 +8,19 @@ import FeatureFlagsService from '../services/feature-flags.ts';
 import type TestFeatureFlagAdapter from '../adapters/test.ts';
 import { defaultAdapters } from '../adapters/index.ts';
 
+export interface FeatureFlagsTestContext extends TestContext {
+  withVariation?: (key: string, value?: unknown) => Promise<void>;
+}
+
 interface Hooks {
-  beforeEach(fn: (this: TestContext) => void | Promise<void>): void;
-  afterEach(fn: (this: TestContext) => void | Promise<void>): void;
+  beforeEach(fn: (this: FeatureFlagsTestContext) => void | Promise<void>): void;
+  afterEach(fn: (this: FeatureFlagsTestContext) => void | Promise<void>): void;
 }
 
 let currentService: FeatureFlagsService | null = null;
 
 export function setupFeatureFlags(hooks: Hooks): void {
-  hooks.beforeEach(async function (this: TestContext) {
+  hooks.beforeEach(async function (this: FeatureFlagsTestContext) {
     if (!this.owner) {
       throw new Error(
         'You must call one of the ember-qunit setupTest(), setupRenderingTest() or setupApplicationTest() methods before calling setupFeatureFlags()',
@@ -66,17 +70,11 @@ export function setupFeatureFlags(hooks: Hooks): void {
     };
   });
 
-  hooks.afterEach(async function (this: TestContext) {
+  hooks.afterEach(async function (this: FeatureFlagsTestContext) {
     const adapter = currentService?.primary as TestFeatureFlagAdapter | null;
     adapter?.reset();
     await settled();
     currentService = null;
     delete this.withVariation;
   });
-}
-
-declare module '@ember/test-helpers' {
-  interface TestContext {
-    withVariation?: (key: string, value?: unknown) => Promise<void>;
-  }
 }
