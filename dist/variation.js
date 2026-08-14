@@ -1,3 +1,4 @@
+import { warn } from '@ember/debug';
 export { default as BaseFeatureFlagAdapter } from './adapters/base.js';
 
 /**
@@ -51,8 +52,16 @@ async function identify(user, traits = {}) {
  * Read a flag's value from outside a component. Not reactive — reads at
  * call time.
  */
-function variation(flagName, options) {
-  return getService().variation(flagName, options);
+function variation(flagName, defaultValue = null) {
+  if (!currentService) {
+    warn(`Feature flags have not been initialized. Returning default value for "${flagName}".`, false, {
+      id: 'ember-feature-flags.variation.not-initialized'
+    });
+    return defaultValue;
+  }
+  return currentService.variation(flagName, {
+    defaultValue
+  }) ?? null;
 }
 function setDriftReporter(reporter) {
   getService().setDriftReporter(reporter);

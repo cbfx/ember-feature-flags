@@ -1,4 +1,4 @@
-import type { FlagUser, VariationOptions } from './adapters/base.ts';
+import type { FlagUser } from './adapters/base.ts';
 import type FeatureFlagsService from './services/feature-flags.ts';
 import type { FeatureFlagsConfig, AdapterRegistry } from './services/feature-flags.ts';
 import type { DriftReporter } from './drift-reporter.ts';
@@ -29,7 +29,7 @@ export declare function identify(user: FlagUser, traits?: Record<string, unknown
  * Read a flag's value from outside a component. Not reactive — reads at
  * call time.
  */
-export declare function variation<T = unknown>(flagName: string, options?: VariationOptions<T>): T;
+export declare function variation<T = unknown>(flagName: string, defaultValue?: T | null): T | null;
 export declare function setDriftReporter(reporter: DriftReporter): void;
 export { default as BaseFeatureFlagAdapter } from './adapters/base.ts';
 export type { FlagUser, VariationOptions } from './adapters/base.ts';

@@ -1,3 +1,4 @@
+import { warn } from '@ember/debug';
 import type ApplicationInstance from '@ember/application/instance';
 import type { FlagUser, VariationOptions } from './adapters/base.ts';
 import type FeatureFlagsService from './services/feature-flags.ts';
@@ -68,9 +69,17 @@ export async function identify(
  */
 export function variation<T = unknown>(
   flagName: string,
-  options?: VariationOptions<T>,
-): T {
-  return getService().variation<T>(flagName, options);
+  defaultValue: T | null = null,
+): T | null {
+  if (!currentService) {
+    warn(
+      `Feature flags have not been initialized. Returning default value for "${flagName}".`,
+      false,
+      { id: 'ember-feature-flags.variation.not-initialized' },
+    );
+    return defaultValue;
+  }
+  return currentService.variation<T>(flagName, { defaultValue }) ?? null;
 }
 
 export function setDriftReporter(reporter: DriftReporter): void {
