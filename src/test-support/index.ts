@@ -3,13 +3,14 @@
  */
 
 import { settled } from '@ember/test-helpers';
-import FeatureFlagsService from '../services/feature-flags.ts';
-import { defaultAdapters } from '../adapters/index.ts';
-import { _setService } from '../variation.ts';
-
 import type { TestContext } from '@ember/test-helpers';
-import type TestFeatureFlagAdapter from '../adapters/test.ts';
-import type { FeatureFlagsConfig } from '../services/feature-flags.ts';
+import Context, {
+  setCurrentContext,
+  getCurrentContext,
+} from 'ember-launch-darkly/-sdk/context';
+import FeatureFlagsService from '../services/feature-flags.ts';
+import LaunchDarklyAdapter from '../adapters/launch-darkly.ts';
+import { _setService } from '../variation.ts';
 
 export interface FeatureFlagsTestContext extends TestContext {
   withVariation?: (key: string, value?: unknown) => Promise<void>;
@@ -40,49 +41,59 @@ export function setupFeatureFlags(hooks: Hooks): void {
     }
 
     currentService = owner.lookup('service:feature-flags');
-
     _setService(currentService);
 
     const config = owner.resolveRegistration('config:environment') as
-      { featureFlags?: FeatureFlagsConfig } | undefined;
+      { launchDarkly?: { localFlags?: Record<string, unknown> } } | undefined;
 
-    const primary = config?.featureFlags?.primary;
-    const declaredFlags = (
-      primary
-        ? (config?.featureFlags?.providers?.[primary]?.['localFlags'] ?? {})
-        : {}
-    ) as Record<string, unknown>;
-
-    const localFlags = Object.keys(declaredFlags).reduce<
-      Record<string, unknown>
-    >((acc, key) => {
+    // Every flag the app declares starts `false`, matching
+    // ember-launch-darkly's baseline.
+    const localFlags = Object.keys(
+      config?.launchDarkly?.localFlags ?? {},
+    ).reduce<Record<string, unknown>>((acc, key) => {
       acc[key] = false;
       return acc;
     }, {});
 
+    // Build ELD's context directly and set it current, exactly as
+    // `setupLaunchDarkly` does. The LaunchDarkly adapter reads through ELD's
+    // `variation()`, so this is the same code path the app uses — no fake
+    // provider, no second implementation to keep in sync.
+    setCurrentContext(new Context({ flags: localFlags }));
+
+    // Point the service at the LaunchDarkly adapter so `variation()` and the
+    // `{{variation}}` helper resolve through it. ELD's `initialize()`
+    // early-returns because the context above already exists, so this does
+    // not touch the network.
     await currentService.initialize(
       {
-        primary: 'test',
-        providers: { test: { flags: localFlags } },
+        primary: 'launch-darkly',
+        providers: {
+          'launch-darkly': {
+            clientSideId: 'test',
+            mode: 'local',
+            localFlags,
+          },
+        },
       },
-      defaultAdapters,
+      { 'launch-darkly': () => Promise.resolve(LaunchDarklyAdapter) },
     );
 
     this.withVariation = (key: string, value: unknown = true) => {
-      const adapter = currentService?.primary as TestFeatureFlagAdapter | null;
-      if (!adapter || typeof adapter.setVariation !== 'function') {
+      const context = getCurrentContext();
+      if (!context) {
         throw new Error(
-          'Feature flags test adapter is missing. Ensure `setupFeatureFlags` has initialized correctly.',
+          'LaunchDarkly context is missing. Ensure `setupFeatureFlags` has initialized correctly.',
         );
       }
-      adapter.setVariation(key, value);
+      context.set(key, value);
       return settled();
     };
   });
 
   hooks.afterEach(async function (this: FeatureFlagsTestContext) {
-    const adapter = currentService?.primary as TestFeatureFlagAdapter | null;
-    adapter?.reset();
+    const context = getCurrentContext();
+    await context?.destroy();
     await settled();
     currentService = null;
     _setService(null);

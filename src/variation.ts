@@ -1,6 +1,5 @@
 import { warn } from '@ember/debug';
-import type ApplicationInstance from '@ember/application/instance';
-import type { FlagUser, VariationOptions } from './adapters/base.ts';
+import type { FlagUser } from './adapters/base.ts';
 import type FeatureFlagsService from './services/feature-flags.ts';
 import type {
   FeatureFlagsConfig,
@@ -19,6 +18,10 @@ import type { DriftReporter } from './drift-reporter.ts';
  */
 
 let currentService: FeatureFlagsService | null = null;
+
+export function _getService(): FeatureFlagsService | null {
+  return currentService;
+}
 
 export function _setService(service: FeatureFlagsService | null): void {
   currentService = service;
@@ -41,6 +44,9 @@ export async function initialize(
   config: FeatureFlagsConfig,
   registry?: AdapterRegistry,
 ): Promise<void> {
+  // Parity with ELD: `initialize()` early-returns when a context already
+  // exists, so a test's setup survives the app booting under `visit()`.
+  if (currentService?.primary) return;
   await getService().initialize(config, registry);
 }
 
@@ -69,8 +75,8 @@ export async function identify(
  */
 export function variation<T = unknown>(
   flagName: string,
-  defaultValue: T | null = null,
-): T | null {
+  defaultValue?: T,
+): T | undefined {
   if (!currentService) {
     warn(
       `Feature flags have not been initialized. Returning default value for "${flagName}".`,
@@ -79,7 +85,7 @@ export function variation<T = unknown>(
     );
     return defaultValue;
   }
-  return currentService.variation<T>(flagName, { defaultValue }) ?? null;
+  return currentService.variation<T>(flagName, { defaultValue });
 }
 
 export function setDriftReporter(reporter: DriftReporter): void {

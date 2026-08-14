@@ -12,6 +12,9 @@ export { default as BaseFeatureFlagAdapter } from './adapters/base.js';
  */
 
 let currentService = null;
+function _getService() {
+  return currentService;
+}
 function _setService(service) {
   currentService = service;
 }
@@ -29,6 +32,9 @@ function getService() {
  * the service is already injected — behavior is identical.
  */
 async function initialize(config, registry) {
+  // Parity with ELD: `initialize()` early-returns when a context already
+  // exists, so a test's setup survives the app booting under `visit()`.
+  if (currentService?.primary) return;
   await getService().initialize(config, registry);
 }
 
@@ -52,7 +58,7 @@ async function identify(user, traits = {}) {
  * Read a flag's value from outside a component. Not reactive — reads at
  * call time.
  */
-function variation(flagName, defaultValue = null) {
+function variation(flagName, defaultValue) {
   if (!currentService) {
     warn(`Feature flags have not been initialized. Returning default value for "${flagName}".`, false, {
       id: 'ember-feature-flags.variation.not-initialized'
@@ -61,11 +67,11 @@ function variation(flagName, defaultValue = null) {
   }
   return currentService.variation(flagName, {
     defaultValue
-  }) ?? null;
+  });
 }
 function setDriftReporter(reporter) {
   getService().setDriftReporter(reporter);
 }
 
-export { _setService, identify, initialize, setDriftReporter, variation };
+export { _getService, _setService, identify, initialize, setDriftReporter, variation };
 //# sourceMappingURL=variation.js.map

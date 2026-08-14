@@ -4,7 +4,7 @@ export interface FlagUser {
     name?: string;
 }
 export interface VariationOptions<T = unknown> {
-    defaultValue?: T | null;
+    defaultValue?: T;
 }
 export type ChangeCallback = () => void;
 export type Unsubscribe = () => void;

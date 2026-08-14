@@ -58,11 +58,12 @@ class FeatureFlagsService extends Service {
       throw new Error('[feature-flags] No primary provider configured.');
     }
 
-    // Re-initializing is legitimate (tests, swapping providers at runtime).
-    // Without this the previous flush interval, event listeners and adapter
-    // subscriptions all leak.
-    if (this.primary || this.secondaries.size > 0) {
-      await this.teardown();
+    // Parity with ember-launch-darkly: a second initialize() is a no-op while
+    // a provider is already active. This is what lets an acceptance test set
+    // flags and then `visit()` without the app's own initialize discarding
+    // them.
+    if (this.primary) {
+      return;
     }
     const activeRegistry = registry ?? (await import('../adapters/index.js')).defaultAdapters;
     const primaryLoader = activeRegistry[config.primary];

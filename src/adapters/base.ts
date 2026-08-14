@@ -5,7 +5,7 @@ export interface FlagUser {
 }
 
 export interface VariationOptions<T = unknown> {
-  defaultValue?: T | null;
+  defaultValue?: T;
 }
 
 export type ChangeCallback = () => void;
