@@ -3,11 +3,13 @@
  */
 
 import { settled } from '@ember/test-helpers';
-import type { TestContext } from '@ember/test-helpers';
 import FeatureFlagsService from '../services/feature-flags.ts';
-import type TestFeatureFlagAdapter from '../adapters/test.ts';
 import { defaultAdapters } from '../adapters/index.ts';
 import { _setService } from '../variation.ts';
+
+import type { TestContext } from '@ember/test-helpers';
+import type TestFeatureFlagAdapter from '../adapters/test.ts';
+import type { FeatureFlagsConfig } from '../services/feature-flags.ts';
 
 export interface FeatureFlagsTestContext extends TestContext {
   withVariation?: (key: string, value?: unknown) => Promise<void>;
@@ -37,18 +39,23 @@ export function setupFeatureFlags(hooks: Hooks): void {
       owner.register('service:feature-flags', FeatureFlagsService);
     }
 
-    currentService = owner.lookup(
-      'service:feature-flags',
-    ) as FeatureFlagsService;
+    currentService = owner.lookup('service:feature-flags');
 
     _setService(currentService);
 
     const config = owner.resolveRegistration('config:environment') as
-      { launchDarkly?: { localFlags?: Record<string, unknown> } } | undefined;
+      { featureFlags?: FeatureFlagsConfig } | undefined;
 
-    const localFlags = Object.keys(
-      config?.launchDarkly?.localFlags ?? {},
-    ).reduce<Record<string, unknown>>((acc, key) => {
+    const primary = config?.featureFlags?.primary;
+    const declaredFlags = (
+      primary
+        ? (config?.featureFlags?.providers?.[primary]?.['localFlags'] ?? {})
+        : {}
+    ) as Record<string, unknown>;
+
+    const localFlags = Object.keys(declaredFlags).reduce<
+      Record<string, unknown>
+    >((acc, key) => {
       acc[key] = false;
       return acc;
     }, {});

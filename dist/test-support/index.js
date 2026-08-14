@@ -20,7 +20,9 @@ function setupFeatureFlags(hooks) {
     currentService = owner.lookup('service:feature-flags');
     _setService(currentService);
     const config = owner.resolveRegistration('config:environment');
-    const localFlags = Object.keys(config?.launchDarkly?.localFlags ?? {}).reduce((acc, key) => {
+    const primary = config?.featureFlags?.primary;
+    const declaredFlags = primary ? config?.featureFlags?.providers?.[primary]?.['localFlags'] ?? {} : {};
+    const localFlags = Object.keys(declaredFlags).reduce((acc, key) => {
       acc[key] = false;
       return acc;
     }, {});
