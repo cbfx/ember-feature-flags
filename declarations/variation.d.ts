@@ -1,13 +1,8 @@
-import type ApplicationInstance from '@ember/application/instance';
 import type { FlagUser, VariationOptions } from './adapters/base.ts';
+import type FeatureFlagsService from './services/feature-flags.ts';
 import type { FeatureFlagsConfig, AdapterRegistry } from './services/feature-flags.ts';
 import type { DriftReporter } from './drift-reporter.ts';
-/**
- * Called once by `instance-initializers/feature-flags.ts` to give this
- * module a handle on the running app instance. Prefixed with `_` to signal
- * it's internal — consumers should never call this directly.
- */
-export declare function _setOwner(owner: ApplicationInstance): void;
+export declare function _setService(service: FeatureFlagsService | null): void;
 /**
  * Initialize the feature-flag service from outside a component/route.
  * Mirrors `ember-launch-darkly`'s top-level `initialize()` for

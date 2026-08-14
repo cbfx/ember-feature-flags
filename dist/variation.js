@@ -10,21 +10,13 @@ export { default as BaseFeatureFlagAdapter } from './adapters/base.js';
  * service directly.
  */
 
-let cachedOwner = null;
-
-/**
- * Called once by `instance-initializers/feature-flags.ts` to give this
- * module a handle on the running app instance. Prefixed with `_` to signal
- * it's internal — consumers should never call this directly.
- */
-function _setOwner(owner) {
-  cachedOwner = owner;
+let currentService = null;
+function _setService(service) {
+  currentService = service;
 }
 function getService() {
-  if (!cachedOwner) throw new Error('feature-flags not initialized');
-  // The service registry augmentation in services/feature-flags.ts already
-  // types this lookup, so no cast is needed.
-  return cachedOwner.lookup('service:feature-flags');
+  if (!currentService) throw new Error('feature-flags not initialized');
+  return currentService;
 }
 
 /**
@@ -66,5 +58,5 @@ function setDriftReporter(reporter) {
   getService().setDriftReporter(reporter);
 }
 
-export { _setOwner, identify, initialize, setDriftReporter, variation };
+export { _setService, identify, initialize, setDriftReporter, variation };
 //# sourceMappingURL=variation.js.map

@@ -1,6 +1,7 @@
 import { settled } from '@ember/test-helpers';
 import FeatureFlagsService from '../services/feature-flags.js';
 import { defaultAdapters } from '../adapters/index.js';
+import { _setService } from '../variation.js';
 
 /**
  * Copyright IBM Corp. 2020, 2026
@@ -17,6 +18,7 @@ function setupFeatureFlags(hooks) {
       owner.register('service:feature-flags', FeatureFlagsService);
     }
     currentService = owner.lookup('service:feature-flags');
+    _setService(currentService);
     const config = owner.resolveRegistration('config:environment');
     const localFlags = Object.keys(config?.launchDarkly?.localFlags ?? {}).reduce((acc, key) => {
       acc[key] = false;
@@ -44,6 +46,7 @@ function setupFeatureFlags(hooks) {
     adapter?.reset();
     await settled();
     currentService = null;
+    _setService(null);
     delete this.withVariation;
   });
 }

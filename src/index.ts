@@ -19,11 +19,11 @@
 
 // Importable variation function for use in plain JS modules (routes, utils).
 export {
+  variation,
   initialize,
   identify,
   setDriftReporter,
-  variation,
-  _setOwner,
+  _setService,
 } from './variation.ts';
 
 // Types every consumer needs to work with the API.

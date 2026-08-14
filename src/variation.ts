@@ -17,22 +17,15 @@ import type { DriftReporter } from './drift-reporter.ts';
  * service directly.
  */
 
-let cachedOwner: ApplicationInstance | null = null;
+let currentService: FeatureFlagsService | null = null;
 
-/**
- * Called once by `instance-initializers/feature-flags.ts` to give this
- * module a handle on the running app instance. Prefixed with `_` to signal
- * it's internal — consumers should never call this directly.
- */
-export function _setOwner(owner: ApplicationInstance): void {
-  cachedOwner = owner;
+export function _setService(service: FeatureFlagsService | null): void {
+  currentService = service;
 }
 
 function getService(): FeatureFlagsService {
-  if (!cachedOwner) throw new Error('feature-flags not initialized');
-  // The service registry augmentation in services/feature-flags.ts already
-  // types this lookup, so no cast is needed.
-  return cachedOwner.lookup('service:feature-flags');
+  if (!currentService) throw new Error('feature-flags not initialized');
+  return currentService;
 }
 
 /**

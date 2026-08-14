@@ -7,6 +7,7 @@ import type { TestContext } from '@ember/test-helpers';
 import FeatureFlagsService from '../services/feature-flags.ts';
 import type TestFeatureFlagAdapter from '../adapters/test.ts';
 import { defaultAdapters } from '../adapters/index.ts';
+import { _setService } from '../variation.ts';
 
 export interface FeatureFlagsTestContext extends TestContext {
   withVariation?: (key: string, value?: unknown) => Promise<void>;
@@ -39,6 +40,8 @@ export function setupFeatureFlags(hooks: Hooks): void {
     currentService = owner.lookup(
       'service:feature-flags',
     ) as FeatureFlagsService;
+
+    _setService(currentService);
 
     const config = owner.resolveRegistration('config:environment') as
       { launchDarkly?: { localFlags?: Record<string, unknown> } } | undefined;
@@ -75,6 +78,7 @@ export function setupFeatureFlags(hooks: Hooks): void {
     adapter?.reset();
     await settled();
     currentService = null;
+    _setService(null);
     delete this.withVariation;
   });
 }

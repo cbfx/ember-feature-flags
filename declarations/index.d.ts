@@ -16,7 +16,7 @@
  *   import LaunchDarklyAdapter from 'ember-feature-flags/adapters/launch-darkly';
  *   import { SentryDriftReporter } from 'ember-feature-flags/reporters';
  */
-export { initialize, identify, setDriftReporter, variation, _setOwner, } from './variation.ts';
+export { variation, initialize, identify, setDriftReporter, _setService, } from './variation.ts';
 export type { FlagUser, VariationOptions, ChangeCallback, Unsubscribe, } from './adapters/base.ts';
 export { default as BaseFeatureFlagAdapter } from './adapters/base.ts';
 export type { DriftReporter, DriftAggregate, DriftSecondaryValue, DriftKind, } from './drift-reporter.ts';

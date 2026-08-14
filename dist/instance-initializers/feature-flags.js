@@ -1,9 +1,9 @@
-import { _setOwner } from '../variation.js';
+import { _setService } from '../variation.js';
 
 var featureFlags = {
   name: 'feature-flags',
   initialize(appInstance) {
-    _setOwner(appInstance);
+    _setService(appInstance.lookup('service:feature-flags'));
   }
 };
 
