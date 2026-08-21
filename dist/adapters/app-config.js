@@ -56,7 +56,7 @@ class AppConfigAdapter extends BaseFeatureFlagAdapter {
 
     // App Configuration SDK emits 'configurationUpdate' events on the
     // emitter when flag definitions change on the server.
-    this.client.emitter.on('configurationUpdate', () => {
+    client.emitter.on('configurationUpdate', () => {
       for (const cb of this.changeCallbacks) cb();
     });
   }
