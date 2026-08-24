@@ -23,6 +23,13 @@ export interface AppConfigConfig {
     environmentId: string;
     /** Fallback flag values used when the service is unreachable and no cache exists. */
     localFlags?: Record<string, unknown>;
+    /**
+     * Prepended to every flag name before lookup. App Configuration instances
+     * imported from LaunchDarkly namespace their feature IDs (e.g. LD's
+     * `my-flag` becomes `ld.flag.my-flag`), so the same call site can resolve
+     * against both providers.
+     */
+    keyPrefix?: string;
 }
 /**
  * IBM Cloud App Configuration adapter.
@@ -44,6 +51,7 @@ export default class AppConfigAdapter extends BaseFeatureFlagAdapter<AppConfigCo
     private entityAttributes;
     private localFlags;
     private changeCallbacks;
+    private keyPrefix;
     init(config: AppConfigConfig): Promise<void>;
     identify(user: FlagUser, traits?: Record<string, unknown>): Promise<void>;
     variation<T = unknown>(flagName: string, { defaultValue }?: VariationOptions<T>): T;

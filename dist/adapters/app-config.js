@@ -39,10 +39,12 @@ class AppConfigAdapter extends BaseFeatureFlagAdapter {
   entityAttributes = {};
   localFlags = {};
   changeCallbacks = new Set();
+  keyPrefix = '';
 
   // eslint-disable-next-line ember/classic-decorator-hooks
   async init(config) {
     this.localFlags = config.localFlags ?? {};
+    this.keyPrefix = config.keyPrefix ?? '';
 
     // Dynamic import so consumers who don't use App Configuration don't
     // pay the bundle cost of loading IBM's SDK.
@@ -79,7 +81,7 @@ class AppConfigAdapter extends BaseFeatureFlagAdapter {
       return this.localFlags[flagName] ?? defaultValue;
     }
     try {
-      const feature = this.client.getFeature(flagName);
+      const feature = this.client.getFeature(`${this.keyPrefix}${flagName}`);
       const value = feature.getCurrentValue(this.entityId, this.entityAttributes);
       return value ?? defaultValue;
     } catch {

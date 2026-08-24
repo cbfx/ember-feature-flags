@@ -30,6 +30,13 @@ export interface AppConfigConfig {
   environmentId: string;
   /** Fallback flag values used when the service is unreachable and no cache exists. */
   localFlags?: Record<string, unknown>;
+  /**
+   * Prepended to every flag name before lookup. App Configuration instances
+   * imported from LaunchDarkly namespace their feature IDs (e.g. LD's
+   * `my-flag` becomes `ld.flag.my-flag`), so the same call site can resolve
+   * against both providers.
+   */
+  keyPrefix?: string;
 }
 
 /**
@@ -71,10 +78,12 @@ export default class AppConfigAdapter extends BaseFeatureFlagAdapter<AppConfigCo
   private entityAttributes: Record<string, unknown> = {};
   private localFlags: Record<string, unknown> = {};
   private changeCallbacks: Set<ChangeCallback> = new Set();
+  private keyPrefix = '';
 
   // eslint-disable-next-line ember/classic-decorator-hooks
   async init(config: AppConfigConfig): Promise<void> {
     this.localFlags = config.localFlags ?? {};
+    this.keyPrefix = config.keyPrefix ?? '';
 
     // Dynamic import so consumers who don't use App Configuration don't
     // pay the bundle cost of loading IBM's SDK.
@@ -120,7 +129,7 @@ export default class AppConfigAdapter extends BaseFeatureFlagAdapter<AppConfigCo
     }
 
     try {
-      const feature = this.client.getFeature(flagName);
+      const feature = this.client.getFeature(`${this.keyPrefix}${flagName}`);
       const value = feature.getCurrentValue(
         this.entityId,
         this.entityAttributes,
