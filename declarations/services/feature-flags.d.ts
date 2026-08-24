@@ -33,6 +33,13 @@ export interface FeatureFlagsConfig {
     drift?: {
         enabled?: boolean;
         flushIntervalMs?: number;
+        /**
+         * Names of identity attributes to attach to each drift report, drawn from
+         * the `user` and `traits` passed to `identify()`. An explicit allowlist
+         * rather than everything, so PII can't reach a drift sink by accident when
+         * someone adds a trait later.
+         */
+        includeAttributes?: string[];
     };
 }
 export interface FeatureFlagsOptions {
@@ -53,6 +60,8 @@ export default class FeatureFlagsService extends Service {
     private primaryName;
     private driftEnabled;
     private driftAggregates;
+    private driftAttributeKeys;
+    private driftAttributes;
     private onDrift;
     private flushIntervalId;
     private visibilityHandler;

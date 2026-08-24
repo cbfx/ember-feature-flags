@@ -65,6 +65,17 @@ export interface DriftAggregate {
   };
   /** Each secondary's answer, keyed by provider name. */
   secondaries: Record<string, DriftSecondaryValue>;
+  /**
+   * Identity attributes captured at `identify()` time, filtered to the names
+   * listed in `drift.includeAttributes`. Empty when none are configured.
+   *
+   * Drift is usually a targeting-rule mismatch rather than a value mismatch,
+   * so knowing which org or project the read was evaluated for is normally
+   * the first thing you need. It's an explicit allowlist because these reports
+   * leave the app — PII shouldn't land in a drift sink because someone added
+   * a trait later.
+   */
+  attributes: Record<string, unknown>;
   /** How many times this drift has been observed in the current flush window. */
   count: number;
   /** Milliseconds since epoch when this drift was first observed. */

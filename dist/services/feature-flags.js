@@ -62,6 +62,8 @@ class FeatureFlagsService extends Service {
   primaryName = null;
   driftEnabled = false;
   driftAggregates = new Map();
+  driftAttributeKeys = [];
+  driftAttributes = {};
   onDrift = null;
   flushIntervalId = null;
   visibilityHandler = null;
@@ -119,6 +121,7 @@ class FeatureFlagsService extends Service {
     // flush timer. Otherwise aggregates accumulate on every flag read and are
     // never drained.
     this.driftEnabled = config.drift?.enabled !== false && this.secondaries.size > 0;
+    this.driftAttributeKeys = config.drift?.includeAttributes ?? [];
     this.onDrift = options?.onDrift ?? null;
     if (this.driftEnabled) {
       this.startDriftFlushing(config.drift?.flushIntervalMs ?? DEFAULT_FLUSH_INTERVAL_MS);
@@ -126,6 +129,13 @@ class FeatureFlagsService extends Service {
   }
   async identify(user, traits = {}) {
     this._revision++;
+    if (this.driftAttributeKeys.length > 0) {
+      const identity = {
+        ...user,
+        ...traits
+      };
+      this.driftAttributes = Object.fromEntries(this.driftAttributeKeys.filter(key => identity[key] !== undefined).map(key => [key, identity[key]]));
+    }
     const promises = [];
     if (this.primary) {
       promises.push(this.primary.identify(user, traits));
@@ -202,8 +212,14 @@ class FeatureFlagsService extends Service {
       existing.secondaries = secondaryValues;
       existing.primary.value = primaryValue;
       existing.kind = aggregateKind;
+      existing.attributes = {
+        ...this.driftAttributes
+      };
     } else {
       this.driftAggregates.set(flagName, {
+        attributes: {
+          ...this.driftAttributes
+        },
         flag: flagName,
         kind: aggregateKind,
         primary: {

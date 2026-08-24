@@ -49,6 +49,13 @@ export interface FeatureFlagsConfig {
   drift?: {
     enabled?: boolean;
     flushIntervalMs?: number;
+    /**
+     * Names of identity attributes to attach to each drift report, drawn from
+     * the `user` and `traits` passed to `identify()`. An explicit allowlist
+     * rather than everything, so PII can't reach a drift sink by accident when
+     * someone adds a trait later.
+     */
+    includeAttributes?: string[];
   };
 }
 
@@ -128,6 +135,8 @@ export default class FeatureFlagsService extends Service {
   private primaryName: string | null = null;
   private driftEnabled = false;
   private driftAggregates: Map<string, DriftAggregate> = new Map();
+  private driftAttributeKeys: string[] = [];
+  private driftAttributes: Record<string, unknown> = {};
   private onDrift: OnDrift | null = null;
   private flushIntervalId: ReturnType<typeof setInterval> | null = null;
   private visibilityHandler: (() => void) | null = null;
@@ -212,6 +221,8 @@ export default class FeatureFlagsService extends Service {
     this.driftEnabled =
       config.drift?.enabled !== false && this.secondaries.size > 0;
 
+    this.driftAttributeKeys = config.drift?.includeAttributes ?? [];
+
     this.onDrift = options?.onDrift ?? null;
 
     if (this.driftEnabled) {
@@ -226,6 +237,16 @@ export default class FeatureFlagsService extends Service {
     traits: Record<string, unknown> = {},
   ): Promise<void> {
     this._revision++;
+
+    if (this.driftAttributeKeys.length > 0) {
+      const identity: Record<string, unknown> = { ...user, ...traits };
+      this.driftAttributes = Object.fromEntries(
+        this.driftAttributeKeys
+          .filter((key) => identity[key] !== undefined)
+          .map((key) => [key, identity[key]]),
+      );
+    }
+
     const promises: Array<Promise<void>> = [];
 
     if (this.primary) {
@@ -324,8 +345,10 @@ export default class FeatureFlagsService extends Service {
       existing.secondaries = secondaryValues;
       existing.primary.value = primaryValue;
       existing.kind = aggregateKind;
+      existing.attributes = { ...this.driftAttributes };
     } else {
       this.driftAggregates.set(flagName, {
+        attributes: { ...this.driftAttributes },
         flag: flagName,
         kind: aggregateKind,
         primary: { provider: this.primaryName as string, value: primaryValue },
