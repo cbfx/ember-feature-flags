@@ -143,7 +143,9 @@ class LaunchDarklyAdapter extends BaseFeatureFlagAdapter {
       key: user.id,
       name: user.name,
       email: user.email,
-      ...traits
+      custom: {
+        ...traits
+      }
     });
     if (!isOk) {
       console.error('LaunchDarkly failed to identify:', error);

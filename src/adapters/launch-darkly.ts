@@ -238,7 +238,7 @@ export default class LaunchDarklyAdapter extends BaseFeatureFlagAdapter<LaunchDa
       key: user.id,
       name: user.name,
       email: user.email,
-      ...traits,
+      custom: { ...traits },
     });
 
     if (!isOk) {
