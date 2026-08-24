@@ -18,13 +18,7 @@
  */
 
 // Importable variation function for use in plain JS modules (routes, utils).
-export {
-  variation,
-  initialize,
-  identify,
-  setDriftReporter,
-  _setService,
-} from './variation.ts';
+export { variation, initialize, identify, _setService } from './variation.ts';
 
 // Types every consumer needs to work with the API.
 export type {
@@ -39,16 +33,17 @@ export { default as BaseFeatureFlagAdapter } from './adapters/base.ts';
 
 // Drift types so consumers can implement custom reporters.
 export type {
-  DriftReporter,
   DriftAggregate,
   DriftSecondaryValue,
   DriftKind,
+  OnDrift,
 } from './drift-reporter.ts';
 
 // Service config + adapter-registry types so consumers can strongly type
 // their config block and their custom adapter registration.
 export type {
   FeatureFlagsConfig,
+  FeatureFlagsOptions,
   AdapterRegistry,
   AdapterLoader,
 } from './services/feature-flags.ts';

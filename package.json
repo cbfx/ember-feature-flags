@@ -23,10 +23,6 @@
       "types": "./declarations/adapters/index.d.ts",
       "default": "./dist/adapters/index.js"
     },
-    "./reporters": {
-      "types": "./declarations/reporters/index.d.ts",
-      "default": "./dist/reporters/index.js"
-    },
     "./test-support": {
       "types": "./declarations/test-support/index.d.ts",
       "default": "./dist/test-support/index.js"

@@ -7,12 +7,11 @@ import type {
   Unsubscribe,
 } from '../adapters/base.ts';
 import type {
-  DriftReporter,
   DriftAggregate,
   DriftKind,
   DriftSecondaryValue,
+  OnDrift,
 } from '../drift-reporter.ts';
-import { ConsoleDriftReporter } from '../reporters/console.ts';
 
 /**
  * A loader for an adapter class. Adapters aren't hardcoded into the service —
@@ -51,6 +50,10 @@ export interface FeatureFlagsConfig {
     enabled?: boolean;
     flushIntervalMs?: number;
   };
+}
+
+export interface FeatureFlagsOptions {
+  onDrift?: OnDrift;
 }
 
 const DEFAULT_FLUSH_INTERVAL_MS = 30_000;
@@ -125,7 +128,7 @@ export default class FeatureFlagsService extends Service {
   private primaryName: string | null = null;
   private driftEnabled = false;
   private driftAggregates: Map<string, DriftAggregate> = new Map();
-  private driftReporter: DriftReporter = new ConsoleDriftReporter();
+  private onDrift: OnDrift | null = null;
   private flushIntervalId: ReturnType<typeof setInterval> | null = null;
   private visibilityHandler: (() => void) | null = null;
 
@@ -137,13 +140,10 @@ export default class FeatureFlagsService extends Service {
    */
   private changeUnsubscribes: Unsubscribe[] = [];
 
-  setDriftReporter(reporter: DriftReporter): void {
-    this.driftReporter = reporter;
-  }
-
   async initialize(
     config: FeatureFlagsConfig,
     registry?: AdapterRegistry,
+    options?: FeatureFlagsOptions,
   ): Promise<void> {
     if (!config?.primary) {
       throw new Error('[feature-flags] No primary provider configured.');
@@ -211,6 +211,8 @@ export default class FeatureFlagsService extends Service {
     // never drained.
     this.driftEnabled =
       config.drift?.enabled !== false && this.secondaries.size > 0;
+
+    this.onDrift = options?.onDrift ?? null;
 
     if (this.driftEnabled) {
       this.startDriftFlushing(
@@ -339,15 +341,20 @@ export default class FeatureFlagsService extends Service {
     if (this.driftAggregates.size === 0) return;
     const batch = Array.from(this.driftAggregates.values());
     this.driftAggregates.clear();
+    if (!this.onDrift) {
+      for (const agg of batch) console.warn('[feature-flags] drift:', agg);
+      return;
+    }
+
     try {
-      const result = this.driftReporter.report(batch);
+      const result = this.onDrift(batch);
       if (result instanceof Promise) {
         result.catch((err: unknown) =>
-          console.error('[feature-flags] Drift reporter rejected:', err),
+          console.error('[feature-flags] onDrift rejected:', err),
         );
       }
     } catch (err) {
-      console.error('[feature-flags] Drift reporter threw:', err);
+      console.error('[feature-flags] onDrift threw:', err);
     }
   }
 

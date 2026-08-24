@@ -31,11 +31,11 @@ function getService() {
  * Consumers can also call `this.featureFlags.initialize(...)` directly if
  * the service is already injected — behavior is identical.
  */
-async function initialize(config, registry) {
+async function initialize(config, registry, options) {
   // Parity with ELD: `initialize()` early-returns when a context already
   // exists, so a test's setup survives the app booting under `visit()`.
   if (currentService?.primary) return;
-  await getService().initialize(config, registry);
+  await getService().initialize(config, registry, options);
 }
 
 /**
@@ -69,9 +69,6 @@ function variation(flagName, defaultValue) {
     defaultValue
   });
 }
-function setDriftReporter(reporter) {
-  getService().setDriftReporter(reporter);
-}
 
-export { _getService, _setService, identify, initialize, setDriftReporter, variation };
+export { _getService, _setService, identify, initialize, variation };
 //# sourceMappingURL=variation.js.map

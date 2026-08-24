@@ -4,8 +4,8 @@ import type FeatureFlagsService from './services/feature-flags.ts';
 import type {
   FeatureFlagsConfig,
   AdapterRegistry,
+  FeatureFlagsOptions,
 } from './services/feature-flags.ts';
-import type { DriftReporter } from './drift-reporter.ts';
 
 /**
  * Importable API for use in plain JS modules — routes, utilities, anywhere
@@ -43,11 +43,12 @@ function getService(): FeatureFlagsService {
 export async function initialize(
   config: FeatureFlagsConfig,
   registry?: AdapterRegistry,
+  options?: FeatureFlagsOptions,
 ): Promise<void> {
   // Parity with ELD: `initialize()` early-returns when a context already
   // exists, so a test's setup survives the app booting under `visit()`.
   if (currentService?.primary) return;
-  await getService().initialize(config, registry);
+  await getService().initialize(config, registry, options);
 }
 
 /**
@@ -86,10 +87,6 @@ export function variation<T = unknown>(
     return defaultValue;
   }
   return currentService.variation<T>(flagName, { defaultValue });
-}
-
-export function setDriftReporter(reporter: DriftReporter): void {
-  getService().setDriftReporter(reporter);
 }
 
 // Re-exports so consumers can import everything from one place if they want.

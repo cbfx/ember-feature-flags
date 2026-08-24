@@ -1,6 +1,5 @@
 import Service from '@ember/service';
 import { tracked } from '@glimmer/tracking';
-import { ConsoleDriftReporter } from '../reporters/console.js';
 import { g, i } from 'decorator-transforms/runtime-esm';
 
 const DEFAULT_FLUSH_INTERVAL_MS = 30_000;
@@ -63,7 +62,7 @@ class FeatureFlagsService extends Service {
   primaryName = null;
   driftEnabled = false;
   driftAggregates = new Map();
-  driftReporter = new ConsoleDriftReporter();
+  onDrift = null;
   flushIntervalId = null;
   visibilityHandler = null;
 
@@ -74,10 +73,7 @@ class FeatureFlagsService extends Service {
    * dead service.
    */
   changeUnsubscribes = [];
-  setDriftReporter(reporter) {
-    this.driftReporter = reporter;
-  }
-  async initialize(config, registry) {
+  async initialize(config, registry, options) {
     if (!config?.primary) {
       throw new Error('[feature-flags] No primary provider configured.');
     }
@@ -123,6 +119,7 @@ class FeatureFlagsService extends Service {
     // flush timer. Otherwise aggregates accumulate on every flag read and are
     // never drained.
     this.driftEnabled = config.drift?.enabled !== false && this.secondaries.size > 0;
+    this.onDrift = options?.onDrift ?? null;
     if (this.driftEnabled) {
       this.startDriftFlushing(config.drift?.flushIntervalMs ?? DEFAULT_FLUSH_INTERVAL_MS);
     }
@@ -224,13 +221,17 @@ class FeatureFlagsService extends Service {
     if (this.driftAggregates.size === 0) return;
     const batch = Array.from(this.driftAggregates.values());
     this.driftAggregates.clear();
+    if (!this.onDrift) {
+      for (const agg of batch) console.warn('[feature-flags] drift:', agg);
+      return;
+    }
     try {
-      const result = this.driftReporter.report(batch);
+      const result = this.onDrift(batch);
       if (result instanceof Promise) {
-        result.catch(err => console.error('[feature-flags] Drift reporter rejected:', err));
+        result.catch(err => console.error('[feature-flags] onDrift rejected:', err));
       }
     } catch (err) {
-      console.error('[feature-flags] Drift reporter threw:', err);
+      console.error('[feature-flags] onDrift threw:', err);
     }
   }
   startDriftFlushing(intervalMs) {

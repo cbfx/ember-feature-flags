@@ -1,7 +1,7 @@
 import Service from '@ember/service';
 import type BaseFeatureFlagAdapter from '../adapters/base.ts';
 import type { FlagUser, VariationOptions } from '../adapters/base.ts';
-import type { DriftReporter } from '../drift-reporter.ts';
+import type { OnDrift } from '../drift-reporter.ts';
 /**
  * A loader for an adapter class. Adapters aren't hardcoded into the service —
  * the consumer passes a registry mapping provider names to loaders on
@@ -35,6 +35,9 @@ export interface FeatureFlagsConfig {
         flushIntervalMs?: number;
     };
 }
+export interface FeatureFlagsOptions {
+    onDrift?: OnDrift;
+}
 /**
  * Public feature-flag service. See README for lifecycle and usage.
  *
@@ -50,7 +53,7 @@ export default class FeatureFlagsService extends Service {
     private primaryName;
     private driftEnabled;
     private driftAggregates;
-    private driftReporter;
+    private onDrift;
     private flushIntervalId;
     private visibilityHandler;
     /**
@@ -60,8 +63,7 @@ export default class FeatureFlagsService extends Service {
      * dead service.
      */
     private changeUnsubscribes;
-    setDriftReporter(reporter: DriftReporter): void;
-    initialize(config: FeatureFlagsConfig, registry?: AdapterRegistry): Promise<void>;
+    initialize(config: FeatureFlagsConfig, registry?: AdapterRegistry, options?: FeatureFlagsOptions): Promise<void>;
     identify(user: FlagUser, traits?: Record<string, unknown>): Promise<void>;
     variation<T = unknown>(flagName: string, options?: VariationOptions<T>): T;
     isEnabled(flagName: string, options?: VariationOptions<boolean>): boolean;

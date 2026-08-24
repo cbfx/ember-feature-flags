@@ -74,14 +74,10 @@ export interface DriftAggregate {
 }
 
 /**
- * The contract every drift reporter implements. The service calls `report()`
- * with a batch of aggregates on each flush; implementations decide what to
- * do with them (log, POST, send to an SDK, etc).
+ * Called with each batch of drift aggregates on flush. Passed to
+ * `initialize()`; the app decides what to do with them.
  *
- * `report()` may be sync or async — the service doesn't await it, but it does
- * attach a `.catch()` so a rejected reporter can't produce an unhandled
- * rejection.
+ * May be sync or async — the service doesn't await it, but it attaches a
+ * `.catch()` so a rejected callback can't produce an unhandled rejection.
  */
-export interface DriftReporter {
-  report(aggregates: DriftAggregate[]): void | Promise<void>;
-}
+export type OnDrift = (aggregates: DriftAggregate[]) => void | Promise<void>;

@@ -1,7 +1,6 @@
 import type { FlagUser } from './adapters/base.ts';
 import type FeatureFlagsService from './services/feature-flags.ts';
-import type { FeatureFlagsConfig, AdapterRegistry } from './services/feature-flags.ts';
-import type { DriftReporter } from './drift-reporter.ts';
+import type { FeatureFlagsConfig, AdapterRegistry, FeatureFlagsOptions } from './services/feature-flags.ts';
 export declare function _getService(): FeatureFlagsService | null;
 export declare function _setService(service: FeatureFlagsService | null): void;
 /**
@@ -12,7 +11,7 @@ export declare function _setService(service: FeatureFlagsService | null): void;
  * Consumers can also call `this.featureFlags.initialize(...)` directly if
  * the service is already injected — behavior is identical.
  */
-export declare function initialize(config: FeatureFlagsConfig, registry?: AdapterRegistry): Promise<void>;
+export declare function initialize(config: FeatureFlagsConfig, registry?: AdapterRegistry, options?: FeatureFlagsOptions): Promise<void>;
 /**
  * Swap the anonymous user for the real one, from outside a component. Fans out
  * to the primary and every healthy secondary in parallel.
@@ -31,7 +30,6 @@ export declare function identify(user: FlagUser, traits?: Record<string, unknown
  * call time.
  */
 export declare function variation<T = unknown>(flagName: string, defaultValue?: T): T | undefined;
-export declare function setDriftReporter(reporter: DriftReporter): void;
 export { default as BaseFeatureFlagAdapter } from './adapters/base.ts';
 export type { FlagUser, VariationOptions } from './adapters/base.ts';
 //# sourceMappingURL=variation.d.ts.map
