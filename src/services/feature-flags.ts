@@ -67,6 +67,44 @@ const KIND_PRIORITY: Record<DriftKind, number> = {
 };
 
 /**
+ * Flag values can be JSON objects or arrays, which `!==` compares by
+ * reference — so two structurally identical values from different providers
+ * would report drift on every read. Compares structurally, and is
+ * key-order independent since two providers won't agree on ordering.
+ */
+function valuesEqual(a: unknown, b: unknown): boolean {
+  if (a === b) return true;
+  if (a === null || b === null) return false;
+  if (typeof a !== 'object' || typeof b !== 'object') return false;
+
+  const aIsArray = Array.isArray(a);
+  if (aIsArray !== Array.isArray(b)) return false;
+
+  if (aIsArray) {
+    const arrA = a as unknown[];
+    const arrB = b as unknown[];
+    return (
+      arrA.length === arrB.length &&
+      arrA.every((item, i) => valuesEqual(item, arrB[i]))
+    );
+  }
+
+  const objA = a as Record<string, unknown>;
+  const objB = b as Record<string, unknown>;
+  const keysA = Object.keys(objA);
+  const keysB = Object.keys(objB);
+
+  return (
+    keysA.length === keysB.length &&
+    keysA.every(
+      (key) =>
+        Object.prototype.hasOwnProperty.call(objB, key) &&
+        valuesEqual(objA[key], objB[key]),
+    )
+  );
+}
+
+/**
  * Public feature-flag service. See README for lifecycle and usage.
  *
  * Reactivity: a single tracked `_revision` is bumped whenever any adapter
@@ -259,7 +297,7 @@ export default class FeatureFlagsService extends Service {
         // No `value` key at all — `missing: true` is the signal. A sentinel
         // Symbol here would vanish from any JSON payload.
         secondaryValues[name] = { kind, missing: true };
-      } else if (value !== primaryValue) {
+      } else if (!valuesEqual(value, primaryValue)) {
         kind = 'value_drift';
         secondaryValues[name] = { kind, value };
       } else {
