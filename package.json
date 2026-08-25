@@ -113,6 +113,9 @@
     "ibm-appconfiguration-js-client-sdk": ">= 0.3.0"
   },
   "peerDependenciesMeta": {
+    "@ember/test-helpers": {
+      "optional": true
+    },
     "ember-launch-darkly": {
       "optional": true
     },

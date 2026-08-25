@@ -16,11 +16,22 @@ function setupFeatureFlags(hooks) {
     }
     currentService = owner.lookup('service:feature-flags');
     _setService(currentService);
-    const config = owner.resolveRegistration('config:environment');
+
+    // Read from the addon's own config shape, not `ENV.launchDarkly`. Apps
+    // migrating off ember-launch-darkly rename that key, and reading the old
+    // one silently yields an empty baseline — every flag then reads
+    // `undefined` in tests instead of `false`.
+    //
+    // The real app nests config under `ENV.APP`, while dummy apps set it at
+    // the root, so both are checked.
+    const env = owner.resolveRegistration('config:environment');
+    const featureFlagsConfig = env?.featureFlags ?? env?.APP?.featureFlags;
+    const primary = featureFlagsConfig?.primary;
+    const declaredFlags = primary ? featureFlagsConfig?.providers?.[primary]?.['localFlags'] ?? {} : {};
 
     // Every flag the app declares starts `false`, matching
     // ember-launch-darkly's baseline.
-    const localFlags = Object.keys(config?.launchDarkly?.localFlags ?? {}).reduce((acc, key) => {
+    const localFlags = Object.keys(declaredFlags).reduce((acc, key) => {
       acc[key] = false;
       return acc;
     }, {});

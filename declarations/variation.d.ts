@@ -28,6 +28,11 @@ export declare function identify(user: FlagUser, traits?: Record<string, unknown
 /**
  * Read a flag's value from outside a component. Not reactive — reads at
  * call time.
+ *
+ * Never throws when uninitialized: a flag read is often incidental — a getter
+ * on a component that some unrelated test renders — so it warns and returns
+ * the default rather than taking the surrounding code down. `initialize` and
+ * `identify` still throw, since those are deliberate calls.
  */
 export declare function variation<T = unknown>(flagName: string, defaultValue?: T): T | undefined;
 export { default as BaseFeatureFlagAdapter } from './adapters/base.ts';

@@ -5,10 +5,14 @@ export { default as BaseFeatureFlagAdapter } from './adapters/base.js';
  * Importable API for use in plain JS modules — routes, utilities, anywhere
  * `@service` injection isn't ergonomic.
  *
- * These functions look up the service via the owner captured at boot (see
- * `instance-initializers/feature-flags.ts`). Reactivity is limited: for a
- * reactive flag read use the template helper `{{variation}}` or inject the
- * service directly.
+ * State lives in a module-level singleton rather than behind an owner lookup,
+ * matching `ember-launch-darkly`'s `window.__LD__`. That's what lets
+ * `variation()` behave identically in an app and in a test: the instance
+ * initializer sets the service at boot, `setupFeatureFlags` sets it in tests,
+ * and nothing else needs wiring.
+ *
+ * Reactivity is limited: for a reactive flag read use the template helper
+ * `{{variation}}` or inject the service directly.
  */
 
 let currentService = null;
@@ -32,9 +36,10 @@ function getService() {
  * the service is already injected — behavior is identical.
  */
 async function initialize(config, registry, options) {
-  // Parity with ELD: `initialize()` early-returns when a context already
-  // exists, so a test's setup survives the app booting under `visit()`.
-  if (currentService?.primary) return;
+  // Always delegated, never short-circuited here: the service applies the
+  // ELD-parity no-op itself, but only *after* registering `options.onDrift`.
+  // Returning early at this level would drop the app's drift callback in any
+  // acceptance test, where `setupFeatureFlags` has already initialized.
   await getService().initialize(config, registry, options);
 }
 
@@ -57,6 +62,11 @@ async function identify(user, traits = {}) {
 /**
  * Read a flag's value from outside a component. Not reactive — reads at
  * call time.
+ *
+ * Never throws when uninitialized: a flag read is often incidental — a getter
+ * on a component that some unrelated test renders — so it warns and returns
+ * the default rather than taking the surrounding code down. `initialize` and
+ * `identify` still throw, since those are deliberate calls.
  */
 function variation(flagName, defaultValue) {
   if (!currentService) {

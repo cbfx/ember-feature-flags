@@ -1,5 +1,4 @@
 import { settled } from '@ember/test-helpers';
-import type { TestContext } from '@ember/test-helpers';
 import Context, {
   setCurrentContext,
   getCurrentContext,
@@ -7,6 +6,9 @@ import Context, {
 import FeatureFlagsService from '../services/feature-flags.ts';
 import LaunchDarklyAdapter from '../adapters/launch-darkly.ts';
 import { _setService } from '../variation.ts';
+
+import type { FeatureFlagsConfig } from '../services/feature-flags.ts';
+import type { TestContext } from '@ember/test-helpers';
 
 export interface FeatureFlagsTestContext extends TestContext {
   withVariation?: (key: string, value?: unknown) => Promise<void>;
@@ -39,14 +41,33 @@ export function setupFeatureFlags(hooks: Hooks): void {
     currentService = owner.lookup('service:feature-flags');
     _setService(currentService);
 
-    const config = owner.resolveRegistration('config:environment') as
-      { launchDarkly?: { localFlags?: Record<string, unknown> } } | undefined;
+    // Read from the addon's own config shape, not `ENV.launchDarkly`. Apps
+    // migrating off ember-launch-darkly rename that key, and reading the old
+    // one silently yields an empty baseline — every flag then reads
+    // `undefined` in tests instead of `false`.
+    //
+    // The real app nests config under `ENV.APP`, while dummy apps set it at
+    // the root, so both are checked.
+    const env = owner.resolveRegistration('config:environment') as
+      | {
+          featureFlags?: FeatureFlagsConfig;
+          APP?: { featureFlags?: FeatureFlagsConfig };
+        }
+      | undefined;
+
+    const featureFlagsConfig = env?.featureFlags ?? env?.APP?.featureFlags;
+    const primary = featureFlagsConfig?.primary;
+    const declaredFlags = (
+      primary
+        ? (featureFlagsConfig?.providers?.[primary]?.['localFlags'] ?? {})
+        : {}
+    ) as Record<string, unknown>;
 
     // Every flag the app declares starts `false`, matching
     // ember-launch-darkly's baseline.
-    const localFlags = Object.keys(
-      config?.launchDarkly?.localFlags ?? {},
-    ).reduce<Record<string, unknown>>((acc, key) => {
+    const localFlags = Object.keys(declaredFlags).reduce<
+      Record<string, unknown>
+    >((acc, key) => {
       acc[key] = false;
       return acc;
     }, {});

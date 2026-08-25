@@ -80,6 +80,16 @@ class FeatureFlagsService extends Service {
       throw new Error('[feature-flags] No primary provider configured.');
     }
 
+    // Registered before the no-op guard below. In an acceptance test
+    // `setupFeatureFlags` initializes the providers first, so the app's own
+    // `initialize()` returns early — but its drift callback still has to
+    // land, or real drift reporting is silently replaced by `console.warn`.
+    // Registering is not invoking: `flushDrift()` only fires when a primary
+    // and at least one secondary actually disagree.
+    if (options?.onDrift) {
+      this.onDrift = options.onDrift;
+    }
+
     // Parity with ember-launch-darkly: a second initialize() is a no-op while
     // a provider is already active. This is what lets an acceptance test set
     // flags and then `visit()` without the app's own initialize discarding
@@ -122,7 +132,6 @@ class FeatureFlagsService extends Service {
     // never drained.
     this.driftEnabled = config.drift?.enabled !== false && this.secondaries.size > 0;
     this.driftAttributeKeys = config.drift?.includeAttributes ?? [];
-    this.onDrift = options?.onDrift ?? null;
     if (this.driftEnabled) {
       this.startDriftFlushing(config.drift?.flushIntervalMs ?? DEFAULT_FLUSH_INTERVAL_MS);
     }
