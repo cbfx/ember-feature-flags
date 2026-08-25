@@ -4,10 +4,6 @@ import FeatureFlagsService from '../services/feature-flags.js';
 import LaunchDarklyAdapter from '../adapters/launch-darkly.js';
 import { _setService } from '../variation.js';
 
-/**
- * Copyright IBM Corp. 2020, 2026
- */
-
 let currentService = null;
 function setupFeatureFlags(hooks) {
   hooks.beforeEach(async function () {

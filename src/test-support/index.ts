@@ -1,7 +1,3 @@
-/**
- * Copyright IBM Corp. 2020, 2026
- */
-
 import { settled } from '@ember/test-helpers';
 import type { TestContext } from '@ember/test-helpers';
 import Context, {
